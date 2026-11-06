@@ -118,6 +118,7 @@
           <span id="fontLabel" class="px-1 text-[0.6875rem] text-slate-500 font-mono min-w-[2.5rem] text-center">100%</span>
           <button id="fontUpBtn" type="button" aria-label="글자 크게" class="px-2.5 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-30">가+</button>
         </div>
+        <button id="backupBtn" type="button" title="즐겨찾기·메모 백업" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors">💾 백업</button>
         <button id="resetAllBtn" type="button" title="초기 상태로 되돌리기" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -284,6 +285,21 @@
           <button type="submit" class="px-4 py-2 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/20">등록하기</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Backup Modal -->
+  <div id="backupModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-sm w-full p-5 flex flex-col gap-3 text-xs sm:text-sm">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">💾 내 기록 백업</h3>
+        <button id="closeBackupBtn" type="button" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100" aria-label="닫기">✕</button>
+      </div>
+      <p class="text-slate-500 leading-relaxed">즐겨찾기·메모·읽음 기록은 이 기기 브라우저에만 저장됩니다. 파일로 내보내 두면 브라우저를 지워도 되살릴 수 있고, 다른 기기(폰↔PC)에서 불러오면 기록이 <strong>합쳐집니다</strong>.</p>
+      <p id="backupSummary" class="text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2"></p>
+      <button id="exportBtn" type="button" class="w-full px-4 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700">⬇️ 파일로 내보내기</button>
+      <button id="importBtn" type="button" class="w-full px-4 py-2.5 bg-white text-slate-700 font-semibold border border-slate-200 rounded-xl hover:bg-slate-50">⬆️ 백업 파일 불러오기</button>
+      <input id="importFile" type="file" accept=".json,application/json" class="hidden">
     </div>
   </div>
 
@@ -945,6 +961,86 @@
       setFont(fontIdx);
       document.getElementById('fontDownBtn').addEventListener('click', () => setFont(fontIdx - 1));
       document.getElementById('fontUpBtn').addEventListener('click', () => setFont(fontIdx + 1));
+
+      // ===== 백업: 즐겨찾기·메모·읽음 기록 내보내기 / 불러오기(합치기) =====
+      const backupModal = document.getElementById('backupModal');
+      const backupSummary = () => {
+        const stars = Object.values(notes).filter(n => n.star).length;
+        const memos = Object.values(notes).filter(n => (n.memo || '').trim()).length;
+        const read = articles.filter(a => a.completed).length;
+        return `이 기기: 즐겨찾기 ${stars} · 메모 ${memos} · 읽은 글 ${read}`;
+      };
+      document.getElementById('backupBtn').addEventListener('click', () => {
+        document.getElementById('backupSummary').textContent = backupSummary();
+        backupModal.classList.remove('hidden');
+      });
+      document.getElementById('closeBackupBtn').addEventListener('click', () => backupModal.classList.add('hidden'));
+      backupModal.addEventListener('click', (e) => { if (e.target === backupModal) backupModal.classList.add('hidden'); });
+
+      document.getElementById('exportBtn').addEventListener('click', () => {
+        const data = {
+          app: 'kpj-digest',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          notes,
+          progress: articles.filter(a => a.completed).map(a => ({ id: a.id, completedAt: a.completedAt })),
+          userArticles: articles.filter(a => String(a.id).startsWith('kpj-user-')).map(({ completed, completedAt, ...rest }) => rest)
+        };
+        const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `kpj-digest-백업-${dayKey(Date.now())}.json`;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
+        showToast('백업 파일을 저장했습니다. 다운로드 폴더(아이폰은 파일 앱)를 확인하세요.');
+      });
+
+      const importFile = document.getElementById('importFile');
+      document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+      importFile.addEventListener('change', async () => {
+        const file = importFile.files[0];
+        importFile.value = '';
+        if (!file) return;
+        let data;
+        try {
+          data = JSON.parse(await file.text());
+          if (data.app !== 'kpj-digest') throw new Error('형식이 다름');
+        } catch (e) {
+          showToast('KPJ Digest 백업 파일이 아닙니다.');
+          return;
+        }
+        let noteCount = 0, readCount = 0, addCount = 0;
+        // 메모·즐겨찾기: 같은 기사면 더 나중에 고친 쪽을 남긴다
+        for (const [id, n] of Object.entries(data.notes || {})) {
+          if (!n || typeof n !== 'object') continue;
+          if (!notes[id] || (n.t || 0) > (notes[id].t || 0)) {
+            notes[id] = { star: !!n.star, memo: String(n.memo || ''), t: n.t || Date.now() };
+            noteCount++;
+          }
+        }
+        saveNotes();
+        // 직접 추가한 글
+        for (const ua of data.userArticles || []) {
+          if (ua && String(ua.id).startsWith('kpj-user-') && !articles.some(a => a.id === ua.id)) {
+            articles.unshift({ ...ua, completed: false });
+            addCount++;
+          }
+        }
+        // 읽음 기록: 합집합, 날짜는 더 이른 쪽
+        for (const p of data.progress || []) {
+          const a = articles.find(x => x.id === p.id);
+          if (!a) continue;
+          if (!a.completed) { a.completed = true; a.completedAt = p.completedAt; readCount++; }
+          else if (p.completedAt && (!a.completedAt || p.completedAt < a.completedAt)) a.completedAt = p.completedAt;
+        }
+        saveArticles();
+        buildCategories();
+        renderArticles();
+        updateStats();
+        document.getElementById('backupSummary').textContent = backupSummary();
+        showToast(`불러오기 완료: 즐겨찾기·메모 ${noteCount}건, 읽은 글 ${readCount}건, 직접 추가한 글 ${addCount}건을 합쳤습니다.`);
+      });
 
       document.getElementById('searchInput').addEventListener('input', (e) => {
         searchQuery = e.target.value;
