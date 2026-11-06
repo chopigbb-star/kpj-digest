@@ -330,6 +330,23 @@
     </div>
   </div>
 
+  <!-- Audio Player Bar -->
+  <div id="playerBar" class="fixed bottom-0 inset-x-0 z-40 hidden bg-slate-900 text-white shadow-2xl border-t border-slate-700">
+    <input id="playerSeek" type="range" min="0" max="1000" value="0" class="w-full h-1 accent-emerald-400 cursor-pointer block" aria-label="재생 위치">
+    <div class="max-w-6xl mx-auto px-4 py-2.5 flex items-center gap-3">
+      <div class="min-w-0 flex-1">
+        <div id="playerTitle" class="text-sm font-semibold truncate">-</div>
+        <div id="playerSub" class="text-[0.6875rem] text-slate-400 truncate">-</div>
+      </div>
+      <button id="playerPrev" type="button" class="w-9 h-9 rounded-full hover:bg-white/10 text-lg" aria-label="이전 기사">⏮</button>
+      <button id="playerPlay" type="button" class="w-11 h-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-xl" aria-label="재생/일시정지">⏸</button>
+      <button id="playerNext" type="button" class="w-9 h-9 rounded-full hover:bg-white/10 text-lg" aria-label="다음 기사">⏭</button>
+      <button id="playerRate" type="button" class="px-2 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold min-w-[3rem]" aria-label="재생 속도">1.0×</button>
+      <button id="playerClose" type="button" class="w-8 h-8 rounded-full hover:bg-white/10 text-slate-400" aria-label="닫기">✕</button>
+    </div>
+    <audio id="audioEl" preload="none"></audio>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast" class="fixed bottom-5 right-5 z-50 hidden max-w-sm w-full bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-800 flex items-center justify-between gap-3 text-xs sm:text-sm transition-all duration-300">
     <div class="flex items-center gap-2">
@@ -784,7 +801,10 @@
       const detailOpen = !keys.length || openDetails.has(a.id);
       const keyHtml = keys.length ? `
           <div class="rounded-xl p-3.5 bg-emerald-50/70 border border-emerald-100">
-            <div class="text-[0.6875rem] font-bold text-emerald-800 tracking-wider mb-2">⚡ 핵심 3줄</div>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <div class="text-[0.6875rem] font-bold text-emerald-800 tracking-wider">⚡ 핵심 3줄</div>
+              ${listenBtn(a)}
+            </div>
             <ol class="flex flex-col gap-1.5">${keys.map((k, i) => `
               <li class="flex items-start gap-2 text-sm sm:text-[0.95rem] text-slate-800 leading-relaxed font-medium">
                 <span class="text-emerald-600 font-bold shrink-0">${i + 1}.</span><span>${esc(k)}</span>
@@ -815,7 +835,7 @@
             <p class="text-xs text-slate-500">${esc(byline)}</p>
           </div>
 
-          ${keyHtml}
+          ${keys.length ? keyHtml : (audioOf(a) ? `<div>${listenBtn(a)}</div>` : '')}
           <div class="detail-body bg-slate-50/80 rounded-xl p-3.5 border border-slate-100 ${detailOpen ? '' : 'hidden'}">
             <div class="text-[0.6875rem] font-bold text-emerald-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
@@ -959,6 +979,7 @@
       return msgs;
     }
 
+    let showAllBadges = false;
     function updateGame() {
       const read = articles.filter(a => a.completed).length;
       const lv = levelInfo(read);
@@ -986,10 +1007,20 @@
       const badges = badgeStates();
       const got = badges.filter(b => b.got).length;
       document.getElementById('badgeCount').textContent = `${got} / ${badges.length}`;
-      document.getElementById('badgeList').innerHTML = badges.map(b => `
+      // 받은 배지 + 다음 목표 3개만 보여주고, 나머지는 [모든 배지 보기]로
+      const badgeHtml = b => `
         <span title="${esc(b.desc)}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.6875rem] font-semibold border ${b.got ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-400'}">
           <span style="${b.got ? '' : 'filter:grayscale(1);opacity:.5'}">${b.icon}</span>${esc(b.name)}
-        </span>`).join('');
+        </span>`;
+      const earned = badges.filter(b => b.got);
+      const pending = badges.filter(b => !b.got);
+      const shown = showAllBadges ? badges : [...earned, ...pending.slice(0, 3)];
+      const hiddenCount = badges.length - shown.length;
+      document.getElementById('badgeList').innerHTML = shown.map(badgeHtml).join('') +
+        (hiddenCount > 0 || showAllBadges
+          ? `<button type="button" id="toggleBadgesBtn" class="px-2 py-1 rounded-lg text-[0.6875rem] font-semibold text-slate-500 hover:text-slate-700 underline">${showAllBadges ? '접기' : `모든 배지 보기 (+${hiddenCount})`}</button>`
+          : '');
+      document.getElementById('toggleBadgesBtn')?.addEventListener('click', () => { showAllBadges = !showAllBadges; updateGame(); });
     }
 
     function celebrate(n = 24) {
@@ -1003,6 +1034,102 @@
         el.style.animationDelay = (Math.random() * 0.4) + 's';
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 3600);
+      }
+    }
+
+    // ===== 읽어주기(음성) =====
+    let AUDIO = { items: {}, baseUrl: '' };
+    const audioOf = a => AUDIO.items[a.id];
+    const fmtTime = sec => `${Math.floor((sec || 0) / 60)}:${String(Math.floor((sec || 0) % 60)).padStart(2, '0')}`;
+    function listenBtn(a) {
+      const au = audioOf(a);
+      if (!au) return '';
+      const playing = player.queue[player.idx] === a.id && player.playing;
+      return `<button type="button" data-id="${esc(a.id)}" class="listen-btn shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[0.6875rem] font-semibold ${playing ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50'}">${playing ? '🔊 듣는 중' : '🎧 듣기'} ${fmtTime(au.seconds)}</button>`;
+    }
+
+    const RATES = [1, 1.25, 1.5, 0.9];
+    const rateLabel = r => `${Number.isInteger(r) ? r.toFixed(1) : r}×`;
+    const player = { queue: [], idx: -1, playing: false, rate: 1 };
+    let audioEl;
+    function playQueue(ids, start) {
+      player.queue = ids.filter(id => AUDIO.items[id]);
+      if (!player.queue.length) return;
+      playAt(Math.min(start, player.queue.length - 1));
+    }
+    function playAt(i) {
+      if (i < 0 || i >= player.queue.length) return;
+      player.idx = i;
+      const id = player.queue[i];
+      const a = articles.find(x => x.id === id);
+      audioEl.src = AUDIO.baseUrl + AUDIO.items[id].file;
+      audioEl.playbackRate = player.rate;
+      audioEl.play().catch(() => {});
+      document.getElementById('playerBar').classList.remove('hidden');
+      document.body.classList.add('pb-24');
+      document.getElementById('toast').classList.add('mb-20');
+      document.getElementById('playerTitle').textContent = a ? a.title : id;
+      document.getElementById('playerSub').textContent = a ? `제${a.issueNo}호 · ${a.category} · ${i + 1}/${player.queue.length}` : '';
+      if ('mediaSession' in navigator && a) {
+        navigator.mediaSession.metadata = new MediaMetadata({ title: a.title, artist: `대한약사저널 제${a.issueNo}호 · ${a.category}`, album: 'KPJ Digest' });
+      }
+    }
+    function refreshListenButtons() {
+      document.querySelectorAll('.listen-btn').forEach(btn => {
+        const a = articles.find(x => x.id === btn.dataset.id);
+        if (a) btn.outerHTML = listenBtn(a);
+      });
+      // outerHTML로 바꾼 버튼에 다시 연결
+      document.querySelectorAll('.listen-btn').forEach(btn => {
+        btn.onclick = () => {
+          const id = btn.dataset.id;
+          if (player.queue[player.idx] === id && !audioEl.paused) { audioEl.pause(); return; }
+          if (player.queue[player.idx] === id) { audioEl.play(); return; }
+          const ids = [...document.querySelectorAll('.listen-btn')].map(b => b.dataset.id);
+          playQueue(ids, Math.max(0, ids.indexOf(id)));
+        };
+      });
+    }
+    function setupPlayer() {
+      audioEl = document.getElementById('audioEl');
+      const playBtn = document.getElementById('playerPlay');
+      const seek = document.getElementById('playerSeek');
+      audioEl.addEventListener('play', () => { player.playing = true; playBtn.textContent = '⏸'; refreshListenButtons(); });
+      audioEl.addEventListener('pause', () => { player.playing = false; playBtn.textContent = '▶'; refreshListenButtons(); });
+      audioEl.addEventListener('ended', () => {
+        if (player.idx + 1 < player.queue.length) playAt(player.idx + 1);
+        else { player.playing = false; playBtn.textContent = '▶'; refreshListenButtons(); showToast('🎧 목록을 다 들었습니다.'); }
+      });
+      audioEl.addEventListener('timeupdate', () => {
+        if (audioEl.duration) seek.value = Math.round(audioEl.currentTime / audioEl.duration * 1000);
+      });
+      seek.addEventListener('input', () => { if (audioEl.duration) audioEl.currentTime = seek.value / 1000 * audioEl.duration; });
+      playBtn.addEventListener('click', () => (audioEl.paused ? audioEl.play() : audioEl.pause()));
+      document.getElementById('playerPrev').addEventListener('click', () => {
+        if (audioEl.currentTime > 5 || player.idx === 0) audioEl.currentTime = 0; else playAt(player.idx - 1);
+      });
+      document.getElementById('playerNext').addEventListener('click', () => playAt(player.idx + 1));
+      const rateBtn = document.getElementById('playerRate');
+      try { player.rate = Number(localStorage.getItem('kpj_audio_rate')) || 1; } catch (e) {}
+      rateBtn.textContent = rateLabel(player.rate);
+      rateBtn.addEventListener('click', () => {
+        player.rate = RATES[(RATES.indexOf(player.rate) + 1) % RATES.length];
+        audioEl.playbackRate = player.rate;
+        rateBtn.textContent = rateLabel(player.rate);
+        try { localStorage.setItem('kpj_audio_rate', player.rate); } catch (e) {}
+      });
+      document.getElementById('playerClose').addEventListener('click', () => {
+        audioEl.pause();
+        document.getElementById('playerBar').classList.add('hidden');
+        document.body.classList.remove('pb-24');
+        document.getElementById('toast').classList.remove('mb-20');
+      });
+      // 잠금화면·이어폰 버튼
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('play', () => audioEl.play());
+        navigator.mediaSession.setActionHandler('pause', () => audioEl.pause());
+        navigator.mediaSession.setActionHandler('previoustrack', () => playAt(player.idx - 1));
+        navigator.mediaSession.setActionHandler('nexttrack', () => playAt(player.idx + 1));
       }
     }
 
@@ -1084,6 +1211,7 @@
                   ${cleared ? '<span class="clear-stamp">★ CLEAR</span>' : ''}
                 </div>
                 ${themesHtml}
+                ${g.all.some(audioOf) ? `<button type="button" class="play-group mt-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[0.6875rem] font-semibold hover:bg-slate-700" data-ids="${esc(g.all.filter(audioOf).sort((x, y) => (x.firstPage || 0) - (y.firstPage || 0)).map(a => a.id).join(','))}">🎧 ${viewMode === 'month' ? '이달' : '이번 호'} 전체 듣기 (${g.all.filter(audioOf).length}편)</button>` : ''}
               </div>
               <span class="flex items-center gap-2 text-xs text-slate-500 shrink-0">
                 <span class="hidden sm:block w-24 bg-slate-100 rounded-full h-2 overflow-hidden"><span class="block h-2 rounded-full ${cleared ? 'bg-amber-400' : 'bg-emerald-500'}" style="width:${pct}%"></span></span>
@@ -1112,6 +1240,14 @@
           updateSpecialCounts();
           renderArticles();
           showToast(on ? '⭐ 즐겨찾기에 추가했습니다. 상단 [⭐ 즐겨찾기]에서 모아 볼 수 있습니다.' : '즐겨찾기에서 뺐습니다.');
+        });
+      });
+      refreshListenButtons(); // 🎧 듣기: 이 기사부터 화면에 보이는 순서대로 이어 듣기
+      container.querySelectorAll('.play-group').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault(); // 묶음 펼침/접힘 막기
+          e.stopPropagation();
+          playQueue(btn.dataset.ids.split(','), 0);
         });
       });
       container.querySelectorAll('.detail-toggle').forEach(btn => {
@@ -1169,10 +1305,16 @@
       try {
         const res = await fetch('data/articles.json', { cache: 'no-cache' });
         SOURCE_ARTICLES = await res.json();
+        // 읽어주기 음성 목록 (없어도 사이트는 동작)
+        try {
+          const ar = await fetch('data/audio.json', { cache: 'no-cache' });
+          if (ar.ok) AUDIO = { items: {}, baseUrl: '', ...(await ar.json()) };
+        } catch (e) {}
       } catch (e) {
         console.warn('articles.json load failed:', e);
         showToast('기사 데이터를 불러오지 못했습니다. 잠시 후 새로고침해주세요.');
       }
+      setupPlayer();
       loadNotes();
       loadArticles();
       loadProgT();

@@ -23,6 +23,12 @@ git pull -q --rebase
 GEMINI_BACKEND=cli SUMMARY_MODEL="${SUMMARY_MODEL:-}" \
   node scripts/update.mjs ${UPDATE_ARGS:-}
 
+# 읽어주기 음성: 음성 저장소가 준비돼 있을 때만 (최근 한 달 치만 유지)
+if [ -d "${AUDIO_DIR:-../kpj-digest-audio}/.git" ]; then
+  EDGE_TTS="${EDGE_TTS:-edge-tts}" AUDIO_DIR="${AUDIO_DIR:-../kpj-digest-audio}" AUDIO_BASE_URL="${AUDIO_BASE_URL:-}" \
+    TTS_VOICE="${TTS_VOICE:-ko-KR-InJoonNeural}" node scripts/tts.mjs || echo "음성 단계 실패 (요약은 계속 올림)"
+fi
+
 git add data/
 if git diff --cached --quiet; then
   echo "변경 없음"
