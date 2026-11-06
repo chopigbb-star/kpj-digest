@@ -166,18 +166,43 @@ function monthsSinceStart() {
   return out;
 }
 
+// 과부하(503)·한도(429)·없는 모델(404)이면 다음 모델로 넘어간다.
+const MODELS = [...new Set([GEMINI_MODEL, 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'])];
+const deadModels = new Set(); // 이번 실행에서 한도 초과/없음으로 확인된 모델
+
 async function geminiRequest(body) {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-      body: JSON.stringify(body)
+  let lastErr = '';
+  let allQuota = true;
+  for (const model of MODELS) {
+    if (deadModels.has(model)) continue;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+          body: JSON.stringify(body)
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        data.model = model;
+        return data;
+      }
+      const text = (await res.text()).replace(/\s+/g, ' ').slice(0, 300);
+      lastErr = `${model} HTTP ${res.status}: ${text}`;
+      if (res.status === 503 || res.status === 500) {
+        allQuota = false;
+        await sleep(15000);
+        continue; // 같은 모델 한 번 더
+      }
+      if (res.status === 429 || res.status === 404) deadModels.add(model);
+      if (res.status !== 429) allQuota = false;
+      break;
     }
-  );
-  if (res.status === 429) throw Object.assign(new Error('Gemini 사용량 한도 도달'), { quota: true });
-  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  return res.json();
+    console.warn(`  모델 전환 (${lastErr.slice(0, 160)})`);
+  }
+  throw Object.assign(new Error(lastErr || '사용 가능한 Gemini 모델 없음'), { quota: allQuota });
 }
 
 async function resolveRedirect(uri) {
@@ -225,6 +250,7 @@ async function researchPastMonths(state) {
     }
     await sleep(GEMINI_DELAY_MS);
   }
+  deadModels.clear(); // 검색 기능 한도는 요약과 별개
   return [...ids];
 }
 
@@ -252,6 +278,7 @@ async function summarize(article, body) {
   const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
   const out = JSON.parse(text);
   if (!Array.isArray(out.summaryPoints) || out.summaryPoints.length === 0) throw new Error('빈 요약');
+  out.model = data.model;
   return out;
 }
 
@@ -272,7 +299,7 @@ async function summarizePending(articles) {
       const out = await summarize(a, body);
       a.summaryPoints = out.summaryPoints.map(s => s.trim()).filter(Boolean).slice(0, 5);
       a.tags = out.tags.map(t => t.replace(/^#/, '').trim()).filter(Boolean).slice(0, 5);
-      a.summarizedBy = GEMINI_MODEL;
+      a.summarizedBy = out.model;
       done++;
       console.log(`요약 완료: ${a.title}`);
     } catch (e) {

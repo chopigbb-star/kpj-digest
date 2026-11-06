@@ -46,6 +46,18 @@
     .article-card {
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    .confetti-piece {
+      position: fixed; top: -2rem; z-index: 60; pointer-events: none; font-size: 1.4rem;
+      animation: confetti-fall linear forwards;
+    }
+    @keyframes confetti-fall {
+      to { transform: translateY(110vh) rotate(720deg); opacity: 0.6; }
+    }
+    .clear-stamp {
+      display: inline-flex; align-items: center; gap: .25rem; padding: .1rem .55rem;
+      border: 2px solid #f59e0b; color: #d97706; border-radius: .5rem; font-weight: 800;
+      font-size: .7rem; letter-spacing: .08em; transform: rotate(-6deg);
+    }
     .article-card.dismissing {
       opacity: 0;
       transform: scale(0.96) translateY(-10px);
@@ -104,31 +116,52 @@
   <!-- Main Content Container -->
   <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full flex flex-col gap-6">
 
-    <!-- Dashboard Status & Progress Card -->
+    <!-- Game Panel: level / streak / today goal / badges -->
     <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm flex flex-col gap-4">
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 class="text-sm font-semibold text-slate-800">나의 학술 저널 읽기 현황</h2>
-          <p class="text-xs text-slate-500 mt-0.5">요약을 꼼꼼히 확인하고 '다 읽음 체크'를 누르면 완료 목록으로 정리됩니다.</p>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Level -->
+        <div class="flex items-center gap-3 lg:col-span-1">
+          <div id="levelBadge" class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex flex-col items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
+            <span class="text-[10px] font-semibold leading-none">LV</span>
+            <span id="levelNum" class="text-xl font-extrabold leading-none">1</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline justify-between gap-2">
+              <span id="levelTitle" class="text-sm font-bold text-slate-900 truncate">실습 약대생</span>
+              <span id="xpText" class="text-[11px] text-slate-500 font-mono shrink-0">0 / 30 XP</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden mt-1.5">
+              <div id="xpBar" class="bg-gradient-to-r from-amber-400 to-orange-500 h-2.5 rounded-full transition-all duration-700" style="width: 0%"></div>
+            </div>
+            <p id="nextLevelText" class="text-[11px] text-slate-400 mt-1">다음 레벨까지 3편</p>
+          </div>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span class="text-xs text-slate-600 font-medium">읽을 글: <strong id="unreadCount" class="text-emerald-600 text-sm font-bold">0</strong>개</span>
+        <!-- Streak & today -->
+        <div class="grid grid-cols-2 gap-3 lg:col-span-1">
+          <div class="px-3 py-2.5 bg-orange-50 rounded-xl border border-orange-100">
+            <div class="text-[11px] text-orange-700 font-semibold">연속 학습</div>
+            <div class="text-lg font-extrabold text-orange-600"><span id="streakIcon">🔥</span> <span id="streakDays">0</span>일</div>
           </div>
-          <div class="px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
-            <span class="text-xs text-slate-600 font-medium">완료: <strong id="readCount" class="text-slate-700 text-sm font-bold">0</strong>개</span>
+          <div class="px-3 py-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
+            <div class="text-[11px] text-emerald-700 font-semibold">오늘의 목표</div>
+            <div class="text-lg font-extrabold text-emerald-700"><span id="todayCount">0</span> / <span id="todayGoal">3</span>편 <span id="todayDone" class="hidden">✅</span></div>
           </div>
-          <div class="px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2">
-            <span class="text-xs text-slate-600 font-medium">진행률: <strong id="progressPercent" class="text-indigo-600 text-sm font-bold">0%</strong></span>
+        </div>
+        <!-- Overall -->
+        <div class="flex flex-col justify-center gap-1.5 lg:col-span-1">
+          <div class="flex items-center justify-between text-xs text-slate-600 font-medium">
+            <span>전체 달성률 · 읽을 글 <strong id="unreadCount" class="text-emerald-600">0</strong> · 완료 <strong id="readCount" class="text-slate-700">0</strong></span>
+            <strong id="progressPercent" class="text-indigo-600 text-sm">0%</strong>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+            <div id="progressBar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
           </div>
         </div>
       </div>
-
-      <!-- Progress bar -->
-      <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-        <div id="progressBar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+      <!-- Badges -->
+      <div>
+        <div class="text-[11px] font-bold text-slate-500 mb-1.5">획득 배지 <span id="badgeCount" class="text-slate-400 font-normal"></span></div>
+        <div id="badgeList" class="flex flex-wrap gap-1.5"></div>
       </div>
     </div>
 
@@ -289,14 +322,15 @@
       const userAdded = savedList.filter(a => String(a.id).startsWith('kpj-user-'));
       const seeds = SOURCE_ARTICLES.map(a => ({
         ...a,
-        completed: savedById.has(a.id) ? !!savedById.get(a.id).completed : false
+        completed: savedById.has(a.id) ? !!savedById.get(a.id).completed : false,
+        completedAt: savedById.has(a.id) ? savedById.get(a.id).completedAt : undefined
       }));
       articles = [...userAdded, ...seeds].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     }
 
     function saveArticles() {
       try {
-        const slim = articles.map(a => String(a.id).startsWith('kpj-user-') ? a : { id: a.id, completed: a.completed });
+        const slim = articles.map(a => String(a.id).startsWith('kpj-user-') ? a : { id: a.id, completed: a.completed, completedAt: a.completedAt });
         localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
       } catch (e) {
         console.warn('LocalStorage save failed:', e);
@@ -366,6 +400,8 @@
       document.getElementById('progressPercent').textContent = percent + '%';
       document.getElementById('progressBar').style.width = percent + '%';
 
+      updateGame();
+
       const btnText = document.getElementById('completedBtnText');
       btnText.textContent = showCompletedOnly ? `미완료 목록으로 (${unread})` : `완료한 글 보기 (${read})`;
     }
@@ -390,10 +426,18 @@
       if (!item.completed) {
         const card = document.getElementById(`card-${id}`);
         const done = () => {
+          const before = gameSnapshot();
           item.completed = true;
+          item.completedAt = Date.now();
           lastDismissedArticle = item;
           finish();
-          showToast(`'${item.title.slice(0, 18)}...' 완료 처리되었습니다.`, true);
+          const msgs = achievementsAfter(before, item);
+          if (msgs.length) {
+            celebrate(msgs.length > 1 ? 40 : 24);
+            showToast(msgs.join(' · '), true);
+          } else {
+            showToast(`+${XP_PER_ARTICLE}XP · '${item.title.slice(0, 16)}...' 완료!`, true);
+          }
         };
         if (card) {
           card.classList.add('dismissing');
@@ -403,6 +447,7 @@
         }
       } else {
         item.completed = false;
+        delete item.completedAt;
         finish();
         showToast(`'${item.title.slice(0, 18)}...' 다시 읽기 목록으로 복원되었습니다.`);
       }
@@ -501,6 +546,158 @@
         </article>`;
     }
 
+
+    // ===== 게임 요소: 레벨·연속 학습·오늘 목표·배지 =====
+    const XP_PER_ARTICLE = 10;
+    const DAILY_GOAL = 3;
+    const LEVELS = [
+      { at: 0, title: '실습 약대생' },
+      { at: 3, title: '신입 약사' },
+      { at: 8, title: '복약지도 새내기' },
+      { at: 15, title: '성실한 근무약사' },
+      { at: 25, title: '상담 잘하는 약사' },
+      { at: 40, title: '숙련 임상약사' },
+      { at: 60, title: '동네 명약사' },
+      { at: 85, title: '약물치료 전문가' },
+      { at: 120, title: '약학 마스터' },
+      { at: 170, title: '전설의 약사' }
+    ];
+
+    function matchesSearch(a, q) {
+      if (!q) return true;
+      return [a.title, a.author, ...(a.summaryPoints || []), ...(a.tags || [])].join(' ').toLowerCase().includes(q);
+    }
+
+    const dayKey = t => {
+      const d = new Date(t);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
+
+    function levelInfo(readCount) {
+      let i = 0;
+      while (i + 1 < LEVELS.length && readCount >= LEVELS[i + 1].at) i++;
+      const cur = LEVELS[i], next = LEVELS[i + 1];
+      return { level: i + 1, title: cur.title, cur, next };
+    }
+
+    function streakInfo() {
+      const days = new Set(articles.filter(a => a.completed && a.completedAt).map(a => dayKey(a.completedAt)));
+      const d = new Date();
+      // 오늘 아직 안 읽었으면 어제부터 이어서 센다 (오늘 안에 읽으면 유지)
+      if (!days.has(dayKey(d))) d.setDate(d.getDate() - 1);
+      let n = 0;
+      while (days.has(dayKey(d))) { n++; d.setDate(d.getDate() - 1); }
+      const today = articles.filter(a => a.completed && a.completedAt && dayKey(a.completedAt) === dayKey(Date.now())).length;
+      return { streak: n, today };
+    }
+
+    // 배지: 모든 배지 정의 → 획득 여부
+    function badgeStates() {
+      const read = articles.filter(a => a.completed).length;
+      const { streak } = streakInfo();
+      const out = [
+        { id: 'first', icon: '🌱', name: '첫 걸음', desc: '첫 글 완독', got: read >= 1 },
+        { id: 'r10', icon: '📘', name: '10편 돌파', desc: '10편 완독', got: read >= 10 },
+        { id: 'r50', icon: '📚', name: '50편 돌파', desc: '50편 완독', got: read >= 50 },
+        { id: 'r100', icon: '🏛️', name: '100편 돌파', desc: '100편 완독', got: read >= 100 },
+        { id: 's3', icon: '🔥', name: '3일 연속', desc: '3일 연속 학습', got: streak >= 3 },
+        { id: 's7', icon: '⚡', name: '7일 연속', desc: '7일 연속 학습', got: streak >= 7 }
+      ];
+      const byCat = {};
+      articles.forEach(a => {
+        byCat[a.category] = byCat[a.category] || { total: 0, done: 0 };
+        byCat[a.category].total++;
+        if (a.completed) byCat[a.category].done++;
+      });
+      categoryList.forEach(cat => {
+        const c = byCat[cat];
+        if (c) out.push({ id: 'cat:' + cat, icon: '🏅', name: `${cat} 정복`, desc: `${cat} ${c.done}/${c.total}`, got: c.done === c.total });
+      });
+      return out;
+    }
+
+    function groupProgress(a, mode) {
+      const prev = viewMode;
+      viewMode = mode;
+      const key = groupOf(a).key;
+      const members = articles.filter(x => groupOf(x).key === key);
+      const label = groupOf(a).label;
+      viewMode = prev;
+      return { label, cleared: members.every(x => x.completed) };
+    }
+
+    function gameSnapshot() {
+      const read = articles.filter(a => a.completed).length;
+      return {
+        level: levelInfo(read).level,
+        today: streakInfo().today,
+        badges: new Set(badgeStates().filter(b => b.got).map(b => b.id))
+      };
+    }
+
+    // 방금 읽은 글로 새로 달성한 것들
+    function achievementsAfter(before, item) {
+      const msgs = [];
+      const read = articles.filter(a => a.completed).length;
+      const lv = levelInfo(read);
+      if (lv.level > before.level) msgs.push(`🎉 레벨 업! LV${lv.level} ${lv.title}`);
+      const week = groupProgress(item, 'week');
+      if (week.cleared) msgs.push(`★ ${week.label} CLEAR`);
+      const month = groupProgress(item, 'month');
+      if (month.cleared) msgs.push(`★ ${month.label} CLEAR`);
+      const { today } = streakInfo();
+      if (before.today < DAILY_GOAL && today >= DAILY_GOAL) msgs.push('✅ 오늘의 목표 달성');
+      badgeStates().filter(b => b.got && !before.badges.has(b.id)).forEach(b => msgs.push(`${b.icon} 배지 획득: ${b.name}`));
+      return msgs;
+    }
+
+    function updateGame() {
+      const read = articles.filter(a => a.completed).length;
+      const lv = levelInfo(read);
+      document.getElementById('levelNum').textContent = lv.level;
+      document.getElementById('levelTitle').textContent = lv.title;
+      if (lv.next) {
+        const span = lv.next.at - lv.cur.at;
+        const got = read - lv.cur.at;
+        document.getElementById('xpText').textContent = `${got * XP_PER_ARTICLE} / ${span * XP_PER_ARTICLE} XP`;
+        document.getElementById('xpBar').style.width = Math.round(got / span * 100) + '%';
+        document.getElementById('nextLevelText').textContent = `다음 칭호 '${lv.next.title}'까지 ${lv.next.at - read}편`;
+      } else {
+        document.getElementById('xpText').textContent = `${read * XP_PER_ARTICLE} XP`;
+        document.getElementById('xpBar').style.width = '100%';
+        document.getElementById('nextLevelText').textContent = '최고 레벨 달성!';
+      }
+
+      const { streak, today } = streakInfo();
+      document.getElementById('streakDays').textContent = streak;
+      document.getElementById('streakIcon').style.filter = streak > 0 ? '' : 'grayscale(1)';
+      document.getElementById('todayCount').textContent = today;
+      document.getElementById('todayGoal').textContent = DAILY_GOAL;
+      document.getElementById('todayDone').classList.toggle('hidden', today < DAILY_GOAL);
+
+      const badges = badgeStates();
+      const got = badges.filter(b => b.got).length;
+      document.getElementById('badgeCount').textContent = `${got} / ${badges.length}`;
+      document.getElementById('badgeList').innerHTML = badges.map(b => `
+        <span title="${esc(b.desc)}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border ${b.got ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-400'}">
+          <span style="${b.got ? '' : 'filter:grayscale(1);opacity:.5'}">${b.icon}</span>${esc(b.name)}
+        </span>`).join('');
+    }
+
+    function celebrate(n = 24) {
+      const icons = ['🎉', '✨', '💊', '⭐', '🎊'];
+      for (let i = 0; i < n; i++) {
+        const el = document.createElement('span');
+        el.className = 'confetti-piece';
+        el.textContent = icons[i % icons.length];
+        el.style.left = Math.random() * 100 + 'vw';
+        el.style.animationDuration = (1.6 + Math.random() * 1.4) + 's';
+        el.style.animationDelay = (Math.random() * 0.4) + 's';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3600);
+      }
+    }
+
     const GRID = 'grid grid-cols-1 md:grid-cols-2 gap-5';
 
     function renderArticles() {
@@ -512,11 +709,7 @@
       const filtered = articles.filter(a => {
         if (showCompletedOnly ? !a.completed : a.completed) return false;
         if (currentCategory !== 'all' && a.category !== currentCategory) return false;
-        if (q) {
-          const hay = [a.title, a.author, ...(a.summaryPoints || []), ...(a.tags || [])].join(' ').toLowerCase();
-          if (!hay.includes(q)) return false;
-        }
-        return true;
+        return matchesSearch(a, q);
       });
 
       if (filtered.length === 0) {
@@ -541,31 +734,47 @@
       if (viewMode === 'list') {
         container.innerHTML = `<div class="${GRID}">${filtered.map(cardHtml).join('')}</div>`;
       } else {
+        // 그룹은 읽음 여부와 상관없이 모두 보여주고 진행률·CLEAR 표시 (카드는 현재 보기 조건에 맞는 것만)
+        const shownIds = new Set(filtered.map(a => a.id));
         const groups = [];
         const byKey = new Map();
-        filtered.forEach(a => {
+        articles.filter(a => (currentCategory === 'all' || a.category === currentCategory) && matchesSearch(a, q)).forEach(a => {
           const g = groupOf(a);
           if (!byKey.has(g.key)) {
-            byKey.set(g.key, { ...g, items: [] });
+            byKey.set(g.key, { ...g, all: [], items: [] });
             groups.push(byKey.get(g.key));
           }
-          byKey.get(g.key).items.push(a);
+          const grp = byKey.get(g.key);
+          grp.all.push(a);
+          if (shownIds.has(a.id)) grp.items.push(a);
         });
         groups.sort((a, b) => b.key.localeCompare(a.key));
-        container.innerHTML = groups.map((g, i) => `
-          <details class="group" ${i < 2 ? 'open' : ''}>
-            <summary class="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50">
-              <div class="flex items-baseline gap-2">
+        let opened = 0;
+        container.innerHTML = groups.map(g => {
+          const done = g.all.filter(a => a.completed).length;
+          const total = g.all.length;
+          const pct = Math.round(done / total * 100);
+          const cleared = done === total;
+          const open = g.items.length > 0 && opened++ < 2;
+          return `
+          <details class="group" ${open ? 'open' : ''}>
+            <summary class="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3 border rounded-xl shadow-sm ${cleared ? 'bg-amber-50/60 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}">
+              <div class="flex items-center gap-2 flex-wrap min-w-0">
                 <span class="text-sm sm:text-base font-bold text-slate-900">${esc(g.label)}</span>
                 ${g.sub ? `<span class="text-xs text-slate-400 font-mono">${esc(g.sub)}</span>` : ''}
+                ${cleared ? '<span class="clear-stamp">★ CLEAR</span>' : ''}
               </div>
-              <span class="flex items-center gap-2 text-xs text-slate-500">
-                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-semibold">${g.items.length}건</span>
+              <span class="flex items-center gap-2 text-xs text-slate-500 shrink-0">
+                <span class="hidden sm:block w-24 bg-slate-100 rounded-full h-2 overflow-hidden"><span class="block h-2 rounded-full ${cleared ? 'bg-amber-400' : 'bg-emerald-500'}" style="width:${pct}%"></span></span>
+                <span class="px-2 py-0.5 ${cleared ? 'bg-amber-100 text-amber-700' : 'bg-emerald-50 text-emerald-700'} rounded-full font-semibold">${done}/${total}</span>
                 <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
               </span>
             </summary>
-            <div class="${GRID} mt-4">${g.items.map(cardHtml).join('')}</div>
-          </details>`).join('');
+            ${g.items.length
+              ? `<div class="${GRID} mt-4">${g.items.map(cardHtml).join('')}</div>`
+              : `<p class="text-xs text-slate-400 px-4 py-3">${cleared && !showCompletedOnly ? '이 기간의 글을 모두 읽었습니다. 🎉' : '표시할 글이 없습니다.'}</p>`}
+          </details>`;
+        }).join('');
       }
 
       container.querySelectorAll('.toggle-status-btn').forEach(btn => {
@@ -636,6 +845,7 @@
       document.getElementById('toastUndoBtn').addEventListener('click', () => {
         if (lastDismissedArticle) {
           lastDismissedArticle.completed = false;
+          delete lastDismissedArticle.completedAt;
           saveArticles();
           renderArticles();
           updateStats();
