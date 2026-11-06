@@ -183,124 +183,256 @@
    "date": "2025-07-21"
   },
   "5419": {
-   "date": "2025-07-28"
+   "date": "2025-07-28",
+   "issueNo": 262,
+   "issueTheme": "뇌졸중Ⅳ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5420": {
-   "date": "2025-08-04"
+   "date": "2025-08-04",
+   "issueNo": 263,
+   "issueTheme": "탈모 Ⅰ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5421": {
-   "date": "2025-08-11"
+   "date": "2025-08-11",
+   "issueNo": 264,
+   "issueTheme": "탈모Ⅱ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5422": {
-   "date": "2025-08-18"
+   "date": "2025-08-18",
+   "issueNo": 265,
+   "issueTheme": "탈모Ⅲ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5423": {
-   "date": "2025-08-25"
+   "date": "2025-08-25",
+   "issueNo": 266,
+   "issueTheme": "탈모Ⅳ",
+   "promptVersion": 3,
+   "articles": 10
   },
   "5424": {
-   "date": "2025-09-01"
+   "date": "2025-09-01",
+   "issueNo": 267,
+   "issueTheme": "치질 Ⅰ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5425": {
-   "date": "2025-09-08"
+   "date": "2025-09-08",
+   "issueNo": 268,
+   "issueTheme": "치질Ⅱ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5426": {
    "date": "2025-09-15"
   },
   "5427": {
-   "date": "2025-09-22"
+   "date": "2025-09-22",
+   "issueNo": 270,
+   "issueTheme": "치질Ⅳ",
+   "promptVersion": 3,
+   "articles": 10
   },
   "5428": {
    "date": "2025-10-06"
   },
   "5429": {
-   "date": "2025-10-13"
+   "date": "2025-10-13",
+   "issueNo": 272,
+   "issueTheme": "안구건조증Ⅱ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5430": {
    "date": "2025-10-20"
   },
   "5431": {
-   "date": "2025-10-27"
+   "date": "2025-10-27",
+   "issueNo": 274,
+   "issueTheme": "안구건조증Ⅳ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5432": {
    "date": "2025-11-03"
   },
   "5433": {
-   "date": "2025-11-10"
+   "date": "2025-11-10",
+   "issueNo": 276,
+   "issueTheme": "B형간염Ⅱ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5434": {
-   "date": "2025-11-17"
+   "date": "2025-11-17",
+   "issueNo": 277,
+   "issueTheme": "B형간염Ⅲ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5435": {
    "date": "2025-11-24"
   },
   "5436": {
-   "date": "2025-12-01"
+   "date": "2025-12-01",
+   "issueNo": 279,
+   "issueTheme": "아토피피부염Ⅰ",
+   "promptVersion": 3,
+   "articles": 10
   },
   "5437": {
-   "date": "2025-12-08"
+   "date": "2025-12-08",
+   "issueNo": 280,
+   "issueTheme": "아토피피부염Ⅱ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5438": {
-   "date": "2025-12-15"
+   "date": "2025-12-15",
+   "issueNo": 281,
+   "issueTheme": "아토피피부염Ⅲ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5439": {
-   "date": "2025-12-22"
+   "date": "2025-12-22",
+   "issueNo": 282,
+   "issueTheme": "아토피피부염Ⅳ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5440": {
-   "date": "2026-01-05"
+   "date": "2026-01-05",
+   "issueNo": 283,
+   "issueTheme": "순환기계질환 고혈압Ⅰ",
+   "promptVersion": 3,
+   "articles": 6
   },
   "5441": {
-   "date": "2026-01-12"
+   "date": "2026-01-12",
+   "issueNo": 284,
+   "issueTheme": "순환기계질환 고혈압Ⅱ",
+   "promptVersion": 3,
+   "articles": 5
   },
   "5442": {
    "date": "2026-01-19"
   },
   "5443": {
-   "date": "2026-01-26"
+   "date": "2026-01-26",
+   "issueNo": 286,
+   "issueTheme": "순환기계질환 심장질환Ⅰ",
+   "promptVersion": 3,
+   "articles": 5
   },
   "5444": {
-   "date": "2026-02-02"
+   "date": "2026-02-02",
+   "issueNo": 287,
+   "issueTheme": "순환기계질환 심장질환Ⅱ",
+   "promptVersion": 3,
+   "articles": 5
   },
   "5445": {
-   "date": "2026-02-09"
+   "date": "2026-02-09",
+   "issueNo": 288,
+   "issueTheme": "순환기계질환 심장질환Ⅲ",
+   "promptVersion": 3,
+   "articles": 5
   },
   "5446": {
-   "date": "2026-02-16"
+   "date": "2026-02-16",
+   "issueNo": 289,
+   "issueTheme": "순환기계질환 이상지질혈증 Ⅰ",
+   "promptVersion": 3,
+   "articles": 5
   },
   "5447": {
-   "date": "2026-02-23"
+   "date": "2026-02-23",
+   "issueNo": 290,
+   "issueTheme": "순환기계질환 이상지질혈증Ⅱ",
+   "promptVersion": 3,
+   "articles": 5
   },
   "5448": {
-   "date": "2026-03-02"
+   "date": "2026-03-02",
+   "issueNo": 291,
+   "issueTheme": "순환기계질환 이상지질혈증Ⅲ",
+   "promptVersion": 3,
+   "articles": 5
   },
   "5449": {
-   "date": "2026-03-09"
+   "date": "2026-03-09",
+   "issueNo": 292,
+   "issueTheme": "순환기계 말초동맥질환 정맥·림프순환장애Ⅰ",
+   "promptVersion": 3,
+   "articles": 6
   },
   "5450": {
-   "date": "2026-03-16"
+   "date": "2026-03-16",
+   "issueNo": 293,
+   "issueTheme": "순환기계 말초동맥질환 정맥·림프순환장애 Ⅱ",
+   "promptVersion": 3,
+   "articles": 3
   },
   "5451": {
-   "date": "2026-03-23"
+   "date": "2026-03-23",
+   "issueNo": 294,
+   "issueTheme": "순환기계 말초동맥질환 정맥·림프순환장애Ⅲ",
+   "promptVersion": 3,
+   "articles": 5
   },
   "5452": {
-   "date": "2026-04-06"
+   "date": "2026-04-06",
+   "issueNo": 295,
+   "issueTheme": "정신신경계1 우울증Ⅰ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5453": {
-   "date": "2026-04-13"
+   "date": "2026-04-13",
+   "issueNo": 296,
+   "issueTheme": "정신신경계1 우울증Ⅱ",
+   "promptVersion": 3,
+   "articles": 6
   },
   "5454": {
    "date": "2026-04-20"
   },
   "5455": {
-   "date": "2026-04-27"
+   "date": "2026-04-27",
+   "issueNo": 298,
+   "issueTheme": "정신신경계1 수면장애Ⅱ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5456": {
-   "date": "2026-05-04"
+   "date": "2026-05-04",
+   "issueNo": 299,
+   "issueTheme": "정신신경계1 조현병·양극성장애Ⅰ",
+   "promptVersion": 3,
+   "articles": 6
   },
   "5457": {
-   "date": "2026-05-11"
+   "date": "2026-05-11",
+   "issueNo": 300,
+   "issueTheme": "정신신경계1 조현병·양극성장애Ⅱ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5458": {
-   "date": "2026-05-18"
+   "date": "2026-05-18",
+   "issueNo": 301,
+   "issueTheme": "정신신경계1 ADHDⅠ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5459": {
    "date": "2026-05-25",
