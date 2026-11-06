@@ -31,7 +31,7 @@ const NO_SUMMARIZE = args.includes('--no-summarize');
 const MAX_FETCH = argVal('--max-fetch', 400);
 const MAX_SUMMARIES = argVal('--max-summaries', 30);
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-const GEMINI_DELAY_MS = 7000; // 무료 등급 분당 호출 제한 대비
+const GEMINI_DELAY_MS = 13000; // 무료 등급 분당 호출 제한(약 5회) 대비 — 상위 모델을 쓰기 위해 여유 있게
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -75,6 +75,8 @@ function parseArticle(idxno, html) {
       .replace(/<style[\s\S]*?<\/style>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/^itemprop="articleBody">/, ''))
+      .replace(/[#.][\w-]+[^{}]{0,200}\{[^}]*\}/g, ' ') // 본문에 섞인 광고용 CSS 제거
+      .replace(/※이미지를 클릭하면 크게 볼 수 있습니다\.?/g, ' ')
       .replace(/\s+/g, ' ').trim();
   }
 
@@ -254,10 +256,21 @@ async function researchPastMonths(state) {
   return [...ids];
 }
 
-const SUMMARY_PROMPT =`너는 약국 약사를 위한 학술 기사 요약가다. 아래 약사공론 '대한약사저널' 기사 본문만 근거로 요약하라.
-- summaryPoints: 3~4개의 한국어 문장. 핵심 기전·특징, 약국 복약지도/상담 포인트, 부작용·상호작용·주의사항 순으로.
-- 수치·약물명은 본문에 있는 그대로 쓰고, 본문에 없는 내용은 추가하지 마라.
-- tags: 약물명·질환명 위주 3~4개 (공백 없이, # 없이).`;
+// 요약 지시를 바꾸면 버전을 올린다 → 기존 요약도 차례로 다시 만든다
+const PROMPT_VERSION = 2;
+const SUMMARY_PROMPT = `너는 바쁜 약국 약사가 30초 안에 읽을 수 있게 학술 기사를 정리하는 편집자다.
+아래 약사공론 '대한약사저널' 기사 본문만 근거로 요약하라.
+
+summaryPoints 작성 규칙:
+- 3~4개 항목. 각 항목은 한 가지 주제만 다루고, 1~2문장, 90자 안팎으로 짧게 쓴다.
+- 항목 맨 앞에 핵심어를 두고 콜론으로 시작한다. 예: "오라페인큐겔(리도카인+CPC): 국소마취로 통증을 빠르게 줄이고 항균 작용을 더한다."
+- 여러 약을 비교하는 기사는 약(또는 제형)별로 항목을 나눈다. 한 문장에 약 이름을 3개 이상 나열하지 않는다.
+- 마지막 항목은 약국에서 바로 쓸 상담·복약지도 포인트나 주의사항(금기, 상호작용, 특정 환자군)으로 한다.
+- "~를 통해 작용한다", "~에 대해 알아본다" 같은 빈 표현, 기사 소개 문장은 쓰지 않는다. 구체적인 사실만 쓴다.
+- 용량·수치·약물명은 본문에 있는 그대로 쓰고, 본문에 없는 내용은 추가하지 않는다.
+- 문체는 "~한다/~이다" 평서형으로 통일한다.
+
+tags: 약물(성분)명·질환명 위주 3~4개, 공백 없이, # 없이.`;
 
 async function summarize(article, body) {
   const data = await geminiRequest({
@@ -289,7 +302,10 @@ async function summarizePending(articles) {
     return;
   }
   // 최신 기사부터 요약
-  const pending = articles.filter(a => !a.summaryPoints?.length).sort((a, b) => b.idxno - a.idxno);
+  // 요약 없는 기사 먼저(최신순), 그다음 예전 지시로 만든 요약(최신순)
+  const stale = a => !a.summaryPoints?.length || (a.promptVersion || 1) < PROMPT_VERSION;
+  const pending = articles.filter(stale)
+    .sort((a, b) => (b.summaryPoints?.length ? 0 : 1) - (a.summaryPoints?.length ? 0 : 1) || b.idxno - a.idxno);
   let done = 0;
   for (const a of pending.slice(0, MAX_SUMMARIES)) {
     try {
@@ -300,6 +316,7 @@ async function summarizePending(articles) {
       a.summaryPoints = out.summaryPoints.map(s => s.trim()).filter(Boolean).slice(0, 5);
       a.tags = out.tags.map(t => t.replace(/^#/, '').trim()).filter(Boolean).slice(0, 5);
       a.summarizedBy = out.model;
+      a.promptVersion = PROMPT_VERSION;
       done++;
       console.log(`요약 완료: ${a.title}`);
     } catch (e) {
