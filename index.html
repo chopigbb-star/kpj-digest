@@ -309,6 +309,24 @@
       <button id="exportBtn" type="button" class="w-full px-4 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700">⬇️ 파일로 내보내기</button>
       <button id="importBtn" type="button" class="w-full px-4 py-2.5 bg-white text-slate-700 font-semibold border border-slate-200 rounded-xl hover:bg-slate-50">⬆️ 백업 파일 불러오기</button>
       <input id="importFile" type="file" accept=".json,application/json" class="hidden">
+
+      <div class="border-t border-slate-100 pt-3 mt-1 flex flex-col gap-2">
+        <h4 class="font-bold text-slate-900">☁️ 내 기기끼리 자동 동기화</h4>
+        <div id="syncOff" class="flex flex-col gap-2">
+          <p class="text-slate-500 leading-relaxed">GitHub 토큰(gist 권한만)을 PC와 폰에 각각 한 번 넣으면, 즐겨찾기·메모·읽음 기록이 내 GitHub 비공개 Gist에 저장되어 자동으로 맞춰집니다.</p>
+          <a href="https://github.com/settings/tokens/new?scopes=gist&description=KPJ%20Digest%20sync" target="_blank" rel="noopener noreferrer" class="text-emerald-700 font-semibold underline">① GitHub에서 토큰 만들기 ↗</a>
+          <input id="syncToken" type="password" autocomplete="off" placeholder="② 만든 토큰 붙여넣기 (ghp_로 시작)" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <button id="syncConnectBtn" type="button" class="w-full px-4 py-2.5 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-700">③ 연결하기</button>
+        </div>
+        <div id="syncOn" class="hidden flex flex-col gap-2">
+          <p id="syncStatus" class="rounded-lg px-3 py-2"></p>
+          <div class="flex gap-2">
+            <button id="syncNowBtn" type="button" class="flex-1 px-3 py-2 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700">지금 동기화</button>
+            <button id="syncDisconnectBtn" type="button" class="flex-1 px-3 py-2 bg-white text-rose-600 font-semibold border border-rose-200 rounded-xl hover:bg-rose-50">이 기기 연결 해제</button>
+          </div>
+          <p class="text-[0.6875rem] text-slate-400">여러 사람이 쓰는 컴퓨터라면 다 쓴 뒤 '연결 해제'를 눌러 주세요. 기록은 지워지지 않고 이 기기에서 토큰만 지워집니다.</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -354,12 +372,13 @@
     }
     function saveNotes() {
       try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch (e) { console.warn('notes save failed', e); }
+      schedulePush();
     }
     const isStarred = a => !!notes[a.id]?.star;
     const memoOf = a => notes[a.id]?.memo || '';
     function setNote(id, patch) {
+      // 즐겨찾기를 끄거나 메모를 지워도 기록(시각)은 남긴다 → 동기화 때 다른 기기의 옛 상태가 되살아나지 않음
       notes[id] = { ...(notes[id] || {}), ...patch, t: Date.now() };
-      if (!notes[id].star && !notes[id].memo) delete notes[id];
       saveNotes();
     }
     // '즐겨찾기'·'메모' 모아보기는 읽음 여부와 상관없이 모두 보여준다
@@ -400,6 +419,180 @@
       } catch (e) {
         console.warn('LocalStorage save failed:', e);
       }
+      stampProgress();
+      schedulePush();
+    }
+
+    // ===== 읽음 기록 변경 시각 (동기화 때 나중에 바꾼 쪽이 이기도록) =====
+    const PROG_T_KEY = 'kpj_progress_t';
+    let progT = {};
+    let doneSnapshot = new Map();
+    function loadProgT() {
+      try { progT = JSON.parse(localStorage.getItem(PROG_T_KEY) || '{}'); } catch (e) { progT = {}; }
+      doneSnapshot = new Map(articles.map(a => [a.id, !!a.completed]));
+    }
+    function stampProgress() {
+      const now = Date.now();
+      for (const a of articles) {
+        if ((doneSnapshot.get(a.id) || false) !== !!a.completed) progT[a.id] = now;
+        doneSnapshot.set(a.id, !!a.completed);
+      }
+      try { localStorage.setItem(PROG_T_KEY, JSON.stringify(progT)); } catch (e) {}
+    }
+
+    // ===== 백업·동기화 공통: 내보낼 데이터 / 합치기 =====
+    function exportData() {
+      return {
+        app: 'kpj-digest',
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        notes,
+        progress: articles.filter(a => a.completed || progT[a.id]).map(a => ({
+          id: a.id, done: !!a.completed, completedAt: a.completedAt, t: progT[a.id] || a.completedAt || 0
+        })),
+        userArticles: articles.filter(a => String(a.id).startsWith('kpj-user-')).map(({ completed, completedAt, ...rest }) => rest)
+      };
+    }
+
+    let suppressPush = false;
+    // 같은 기사는 더 나중에 바꾼 쪽을 남긴다. 반환: 바뀐 개수
+    function mergeData(data) {
+      let noteCount = 0, readCount = 0, addCount = 0;
+      suppressPush = true;
+      try {
+        for (const [id, n] of Object.entries(data.notes || {})) {
+          if (!n || typeof n !== 'object') continue;
+          if (!notes[id] || (n.t || 0) > (notes[id].t || 0)) {
+            notes[id] = { star: !!n.star, memo: String(n.memo || ''), t: n.t || Date.now() };
+            noteCount++;
+          }
+        }
+        saveNotes();
+        for (const ua of data.userArticles || []) {
+          if (ua && String(ua.id).startsWith('kpj-user-') && !articles.some(a => a.id === ua.id)) {
+            articles.unshift({ ...ua, completed: false });
+            addCount++;
+          }
+        }
+        for (const p of data.progress || []) {
+          const a = articles.find(x => x.id === p.id);
+          if (!a) continue;
+          const remoteT = p.t ?? p.completedAt ?? 0;
+          const remoteDone = p.done ?? true; // 예전 백업 파일은 읽은 글만 담음
+          const localT = progT[a.id] ?? (a.completed ? (a.completedAt || 0) : 0);
+          if (remoteT > localT) {
+            if (!!a.completed !== remoteDone) readCount++;
+            a.completed = remoteDone;
+            if (remoteDone) a.completedAt = p.completedAt; else delete a.completedAt;
+            progT[a.id] = remoteT;
+            doneSnapshot.set(a.id, remoteDone); // 내 변경으로 오인해 시각을 새로 찍지 않게
+          }
+        }
+        saveArticles();
+      } finally {
+        suppressPush = false;
+      }
+      return { noteCount, readCount, addCount, changed: noteCount + readCount + addCount > 0 };
+    }
+
+    // ===== GitHub Gist 동기화 (내 기기끼리) =====
+    const SYNC_KEY = 'kpj_sync_v1';
+    const GIST_FILE = 'kpj-digest-sync.json';
+    let sync = null; // { token, gistId, last }
+    try { sync = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); } catch (e) { sync = null; }
+    const saveSync = () => { try { sync ? localStorage.setItem(SYNC_KEY, JSON.stringify(sync)) : localStorage.removeItem(SYNC_KEY); } catch (e) {} };
+    let pushTimer = null, syncing = false, syncAgain = false, syncError = '';
+
+    async function gh(pathname, opts = {}) {
+      const res = await fetch('https://api.github.com' + pathname, {
+        ...opts,
+        cache: 'no-store',
+        headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${sync.token}`, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) }
+      });
+      if (res.status === 401) throw new Error('토큰이 만료됐거나 잘못됐습니다. 연결을 해제하고 새 토큰으로 다시 연결해 주세요.');
+      if (res.status === 403 || res.status === 404) throw new Error(`권한이 없습니다(${res.status}). 토큰에 gist 권한이 있는지 확인해 주세요.`);
+      if (!res.ok) throw new Error(`GitHub 오류 ${res.status}`);
+      return res.json();
+    }
+
+    async function findOrCreateGist() {
+      for (let page = 1; page <= 5; page++) {
+        const list = await gh(`/gists?per_page=100&page=${page}`);
+        const found = list.find(g => g.files && g.files[GIST_FILE]);
+        if (found) return found.id;
+        if (list.length < 100) break;
+      }
+      const created = await gh('/gists', {
+        method: 'POST',
+        body: JSON.stringify({ description: 'KPJ Digest 동기화 (자동 생성 — 지우면 동기화 기록이 사라짐)', public: false, files: { [GIST_FILE]: { content: JSON.stringify(exportData()) } } })
+      });
+      return created.id;
+    }
+
+    async function pullRemote() {
+      const g = await gh(`/gists/${sync.gistId}`);
+      const f = g.files && g.files[GIST_FILE];
+      if (!f) return null;
+      const text = f.truncated ? await (await fetch(f.raw_url, { cache: 'no-store' })).text() : f.content;
+      try { return JSON.parse(text || 'null'); } catch (e) { return null; }
+    }
+
+    const withoutTime = d => JSON.stringify({ ...d, exportedAt: '' });
+
+    async function syncNow() {
+      if (!sync) return;
+      if (syncing) { syncAgain = true; return; }
+      syncing = true;
+      clearTimeout(pushTimer);
+      updateSyncUI('동기화 중…');
+      try {
+        const remote = await pullRemote();
+        let result = { changed: false };
+        if (remote && remote.app === 'kpj-digest') result = mergeData(remote);
+        const local = exportData();
+        if (!remote || withoutTime(remote) !== withoutTime(local)) {
+          await gh(`/gists/${sync.gistId}`, { method: 'PATCH', body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(local) } } }) });
+        }
+        sync.last = Date.now();
+        saveSync();
+        syncError = '';
+        if (result.changed) refreshAfterSync(result);
+      } catch (e) {
+        syncError = e.message;
+      } finally {
+        syncing = false;
+        updateSyncUI();
+        if (syncAgain) { syncAgain = false; schedulePush(); }
+      }
+    }
+
+    function schedulePush() {
+      if (!sync || suppressPush) return;
+      clearTimeout(pushTimer);
+      pushTimer = setTimeout(syncNow, 2500);
+    }
+
+    function refreshAfterSync(result) {
+      updateSpecialCounts();
+      updateStats();
+      // 메모를 쓰는 중이면 화면을 다시 그리지 않는다 (커서 유지)
+      if (!document.activeElement?.classList?.contains('memo-input')) {
+        if (result.addCount) buildCategories();
+        renderArticles();
+      }
+    }
+
+    function updateSyncUI(status) {
+      const btn = document.getElementById('backupBtn');
+      if (!btn) return;
+      btn.textContent = sync ? (syncError ? '⚠️ 동기화' : '☁️ 동기화') : '💾 백업';
+      document.getElementById('syncOff').classList.toggle('hidden', !!sync);
+      document.getElementById('syncOn').classList.toggle('hidden', !sync);
+      if (!sync) return;
+      const last = sync.last ? new Date(sync.last).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '아직 없음';
+      const el = document.getElementById('syncStatus');
+      el.textContent = status || (syncError ? `⚠️ ${syncError}` : `✅ 연결됨 · 마지막 동기화 ${last}`);
+      el.className = `rounded-lg px-3 py-2 ${syncError ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-800 border border-emerald-100'}`;
     }
 
     const BADGE_COLORS = ['blue', 'purple', 'emerald', 'amber', 'rose', 'sky', 'indigo', 'teal'];
@@ -982,6 +1175,7 @@
       }
       loadNotes();
       loadArticles();
+      loadProgT();
       buildCategories();
       let savedView = 'week';
       try { savedView = localStorage.getItem(VIEW_KEY) || 'week'; } catch (e) {}
@@ -1014,20 +1208,60 @@
       };
       document.getElementById('backupBtn').addEventListener('click', () => {
         document.getElementById('backupSummary').textContent = backupSummary();
+        updateSyncUI();
         backupModal.classList.remove('hidden');
+      });
+
+      document.getElementById('syncConnectBtn').addEventListener('click', async () => {
+        const input = document.getElementById('syncToken');
+        const token = input.value.trim();
+        if (!token) { showToast('토큰을 붙여넣어 주세요.'); return; }
+        const btn = document.getElementById('syncConnectBtn');
+        btn.disabled = true;
+        btn.textContent = '연결 중…';
+        sync = { token };
+        try {
+          sync.gistId = await findOrCreateGist();
+          saveSync();
+          input.value = '';
+          await syncNow();
+          showToast(syncError ? `동기화 오류: ${syncError}` : '☁️ 연결됐습니다. 다른 기기에서도 같은 토큰으로 연결하면 기록이 맞춰집니다.');
+        } catch (e) {
+          sync = null;
+          saveSync();
+          showToast(`연결 실패: ${e.message}`);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '③ 연결하기';
+          updateSyncUI();
+          document.getElementById('backupSummary').textContent = backupSummary();
+        }
+      });
+      document.getElementById('syncNowBtn').addEventListener('click', async () => {
+        await syncNow();
+        document.getElementById('backupSummary').textContent = backupSummary();
+        showToast(syncError ? `동기화 오류: ${syncError}` : '동기화했습니다.');
+      });
+      document.getElementById('syncDisconnectBtn').addEventListener('click', () => {
+        if (!confirm('이 기기의 동기화 연결을 해제할까요? (기록은 그대로 남고, 이 기기에서 토큰만 지워집니다)')) return;
+        sync = null;
+        syncError = '';
+        saveSync();
+        updateSyncUI();
+        showToast('이 기기의 동기화 연결을 해제했습니다.');
+      });
+      // 시작할 때, 다른 앱에 갔다가 돌아왔을 때 동기화
+      updateSyncUI();
+      if (sync) syncNow();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && sync) syncNow();
+        else if (document.visibilityState === 'hidden' && pushTimer && sync) syncNow();
       });
       document.getElementById('closeBackupBtn').addEventListener('click', () => backupModal.classList.add('hidden'));
       backupModal.addEventListener('click', (e) => { if (e.target === backupModal) backupModal.classList.add('hidden'); });
 
       document.getElementById('exportBtn').addEventListener('click', () => {
-        const data = {
-          app: 'kpj-digest',
-          version: 1,
-          exportedAt: new Date().toISOString(),
-          notes,
-          progress: articles.filter(a => a.completed).map(a => ({ id: a.id, completedAt: a.completedAt })),
-          userArticles: articles.filter(a => String(a.id).startsWith('kpj-user-')).map(({ completed, completedAt, ...rest }) => rest)
-        };
+        const data = exportData();
         const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -1052,31 +1286,8 @@
           showToast('KPJ Digest 백업 파일이 아닙니다.');
           return;
         }
-        let noteCount = 0, readCount = 0, addCount = 0;
-        // 메모·즐겨찾기: 같은 기사면 더 나중에 고친 쪽을 남긴다
-        for (const [id, n] of Object.entries(data.notes || {})) {
-          if (!n || typeof n !== 'object') continue;
-          if (!notes[id] || (n.t || 0) > (notes[id].t || 0)) {
-            notes[id] = { star: !!n.star, memo: String(n.memo || ''), t: n.t || Date.now() };
-            noteCount++;
-          }
-        }
-        saveNotes();
-        // 직접 추가한 글
-        for (const ua of data.userArticles || []) {
-          if (ua && String(ua.id).startsWith('kpj-user-') && !articles.some(a => a.id === ua.id)) {
-            articles.unshift({ ...ua, completed: false });
-            addCount++;
-          }
-        }
-        // 읽음 기록: 합집합, 날짜는 더 이른 쪽
-        for (const p of data.progress || []) {
-          const a = articles.find(x => x.id === p.id);
-          if (!a) continue;
-          if (!a.completed) { a.completed = true; a.completedAt = p.completedAt; readCount++; }
-          else if (p.completedAt && (!a.completedAt || p.completedAt < a.completedAt)) a.completedAt = p.completedAt;
-        }
-        saveArticles();
+        const { noteCount, readCount, addCount } = mergeData(data);
+        schedulePush();
         buildCategories();
         renderArticles();
         updateStats();
@@ -1107,6 +1318,7 @@
         if (!confirm('읽음 표시와 직접 추가한 글을 모두 지우고 처음 상태로 되돌릴까요? (즐겨찾기·메모는 그대로 둡니다)')) return;
         try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
         loadArticles();
+        saveArticles(); // 읽음 해제 시각을 남겨 동기화된 다른 기기에도 반영
         buildCategories();
         setCompletedView(false);
         showToast('초기 상태로 재설정되었습니다.');
