@@ -183,7 +183,9 @@ async function geminiRequest(body) {
   for (const model of MODELS) {
     if (deadModels.has(model)) continue;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const res = await fetch(
+      let res;
+      try {
+        res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
           method: 'POST',
@@ -191,6 +193,12 @@ async function geminiRequest(body) {
           body: JSON.stringify(body)
         }
       );
+      } catch (e) {
+        lastErr = `${model} 네트워크 오류: ${e.message}`;
+        allQuota = false;
+        await sleep(10000);
+        continue;
+      }
       if (res.ok) {
         const data = await res.json();
         data.model = model;
@@ -281,6 +289,7 @@ tags: 약물(성분)명·질환명 위주 3~4개, 공백 없이, # 없이.`;
 
 // 본문 글이 이만큼보다 짧으면 기사 이미지를 읽어서 요약한다
 const IMAGE_FALLBACK_CHARS = 1500;
+const IMAGE_VERSION = 2; // 이미지 처리 방식을 바꾸면 올린다 → 이미지로 요약한 기사만 다시
 const MAX_IMAGE_PARTS = 10;
 
 // 세로로 긴 이미지는 잘라서 보낸다 (ImageMagick 있으면). 반환: [{mime, data(base64)}]
@@ -297,7 +306,7 @@ async function loadImageParts(urls) {
       const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'kpj-img-'));
       const src = path.join(dir, 'src.jpg');
       await fs.writeFile(src, buf);
-      execFileSync('convert', [src, '-crop', '100%x1600', '+repage', '-quality', '85', path.join(dir, 'part_%02d.jpg')]);
+      execFileSync('convert', [src, '-crop', '20000x1400', '+repage', '-quality', '85', path.join(dir, 'part_%02d.jpg')]);
       const files = (await fs.readdir(dir)).filter(f => f.startsWith('part_')).sort();
       if (files.length) pieces = await Promise.all(files.map(f => fs.readFile(path.join(dir, f))));
       await fs.rm(dir, { recursive: true, force: true });
@@ -344,7 +353,8 @@ async function summarizePending(articles) {
   }
   // 최신 기사부터 요약
   // 요약 없는 기사 먼저(최신순), 그다음 예전 지시로 만든 요약(최신순)
-  const stale = a => !a.summaryPoints?.length || (a.promptVersion || 1) < PROMPT_VERSION;
+  const stale = a => !a.summaryPoints?.length || (a.promptVersion || 1) < PROMPT_VERSION
+    || (a.fromImages && (a.imageVersion || 1) < IMAGE_VERSION);
   const pending = articles.filter(stale)
     .sort((a, b) => (b.summaryPoints?.length ? 0 : 1) - (a.summaryPoints?.length ? 0 : 1) || b.idxno - a.idxno);
   let done = 0;
@@ -360,6 +370,7 @@ async function summarizePending(articles) {
       if (body.length < 200 && !imageParts.length) { console.warn(`본문 짧음, 건너뜀: ${a.title}`); continue; }
       const out = await summarize(a, body, imageParts);
       a.fromImages = imageParts.length > 0;
+      if (a.fromImages) a.imageVersion = IMAGE_VERSION;
       a.summaryPoints = out.summaryPoints.map(s => s.trim()).filter(Boolean).slice(0, 7);
       a.tags = out.tags.map(t => t.replace(/^#/, '').trim()).filter(Boolean).slice(0, 5);
       a.summarizedBy = out.model;
