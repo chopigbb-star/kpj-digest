@@ -170,7 +170,8 @@ async function discover(articles, state) {
 
 // 과거 기사 찾기: Gemini + Google 검색으로 월별 기사 URL 후보를 받는다.
 // 후보는 discover()에서 실제 기사 페이지를 열어 대한약사저널·날짜를 확인한 뒤에만 추가된다.
-const MAX_RESEARCH_MONTHS = argVal('--max-research', 4);
+// 무료 키로는 Google 검색 기능 한도가 막혀 있어 기본은 꺼둠 (과거 기사는 data/manual-urls.txt로 입력)
+const MAX_RESEARCH_MONTHS = argVal('--max-research', 0);
 const RESEARCH_ATTEMPTS = 2;
 
 function monthsSinceStart() {
@@ -239,7 +240,7 @@ async function resolveRedirect(uri) {
 }
 
 async function researchPastMonths(state) {
-  if (NO_SUMMARIZE || !process.env.GEMINI_API_KEY) return [];
+  if (NO_SUMMARIZE || !process.env.GEMINI_API_KEY || MAX_RESEARCH_MONTHS <= 0) return [];
   state.research = state.research || {};
   const thisMonth = new Date().toISOString().slice(0, 7);
   // 이번 달은 RSS로 채워지므로 지난달까지만, 오래된 달부터
