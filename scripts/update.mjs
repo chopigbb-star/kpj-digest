@@ -257,15 +257,15 @@ async function researchPastMonths(state) {
 }
 
 // 요약 지시를 바꾸면 버전을 올린다 → 기존 요약도 차례로 다시 만든다
-const PROMPT_VERSION = 2;
+const PROMPT_VERSION = 3;
 const SUMMARY_PROMPT = `너는 바쁜 약국 약사가 30초 안에 읽을 수 있게 학술 기사를 정리하는 편집자다.
 아래 약사공론 '대한약사저널' 기사 본문만 근거로 요약하라.
 
 summaryPoints 작성 규칙:
-- 3~4개 항목. 각 항목은 한 가지 주제만 다루고, 1~2문장, 90자 안팎으로 짧게 쓴다.
+- 4~6개 항목. 각 항목은 한 가지 주제만 다루고 1~3문장으로 쓴다. 기전·근거(임상연구 결과 등)·용법·주의사항처럼 약국에서 쓸모 있는 구체적 내용은 충분히 담는다. 기사가 짧으면 항목 수를 줄인다.
 - 항목 맨 앞에 핵심어를 두고 콜론으로 시작한다. 예: "오라페인큐겔(리도카인+CPC): 국소마취로 통증을 빠르게 줄이고 항균 작용을 더한다."
 - 여러 약을 비교하는 기사는 약(또는 제형)별로 항목을 나눈다. 한 문장에 약 이름을 3개 이상 나열하지 않는다.
-- 마지막 항목은 약국에서 바로 쓸 상담·복약지도 포인트나 주의사항(금기, 상호작용, 특정 환자군)으로 한다.
+- 마지막 1~2개 항목은 약국에서 바로 쓸 상담·복약지도 포인트나 주의사항(금기, 상호작용, 특정 환자군)으로 한다.
 - "~를 통해 작용한다", "~에 대해 알아본다" 같은 빈 표현, 기사 소개 문장은 쓰지 않는다. 구체적인 사실만 쓴다.
 - 용량·수치·약물명은 본문에 있는 그대로 쓰고, 본문에 없는 내용은 추가하지 않는다.
 - 문체는 "~한다/~이다" 평서형으로 통일한다.
@@ -313,7 +313,7 @@ async function summarizePending(articles) {
       const { body } = parseArticle(a.idxno, html);
       if (body.length < 200) { console.warn(`본문 짧음, 건너뜀: ${a.title}`); continue; }
       const out = await summarize(a, body);
-      a.summaryPoints = out.summaryPoints.map(s => s.trim()).filter(Boolean).slice(0, 5);
+      a.summaryPoints = out.summaryPoints.map(s => s.trim()).filter(Boolean).slice(0, 7);
       a.tags = out.tags.map(t => t.replace(/^#/, '').trim()).filter(Boolean).slice(0, 5);
       a.summarizedBy = out.model;
       a.promptVersion = PROMPT_VERSION;
