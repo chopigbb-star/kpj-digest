@@ -1,8 +1,8 @@
 name: 기사 수집·요약
 
+# 평소에는 맥미니(scripts/run-mac.sh)가 4시간마다 실행한다.
+# 이 워크플로는 맥미니가 안 될 때 쓰는 예비용 (Actions 탭에서 수동 실행, 무료 API 키 사용)
 on:
-  schedule:
-    - cron: '17 */4 * * *' # 4시간마다 (UTC 기준)
   workflow_dispatch: {}
 
 permissions:

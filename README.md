@@ -3,7 +3,10 @@
 사이트: https://chopigbb-star.github.io/kpj-digest/
 
 ## 동작 방식
-- `.github/workflows/update.yml`이 4시간마다 `scripts/update.mjs`를 실행한다.
+- 맥미니의 launchd(`~/Library/LaunchAgents/com.kpjdigest.update.plist`)가 4시간마다 `scripts/run-mac.sh`를 실행한다.
+  - Antigravity CLI(`agy`, 구글 계정 로그인)로 요약은 Gemini 3.8 Flash, 검토는 Gemini 4 Argon (`scripts/mac.env`에서 변경)
+  - 로그: `~/Library/Logs/kpj-digest.log`
+- `.github/workflows/update.yml`은 예비용(수동 실행, 무료 API 키). `scripts/update.mjs` 단계:
   1. **수집**: 약사공론 공식 RSS에서 새 기사를 찾고, 기사 페이지의 섹션이 '대한약사저널'인 것만 담는다.
   2. **과거 기사**: `data/manual-urls.txt`에 붙여넣은 주소(또는 idxno)를 확인해 2025년 3월 이후 대한약사저널 기사만 담는다. (Gemini 검색 리서치는 무료 키 한도 때문에 기본 꺼짐: `--max-research N`으로 켬)
   3. **요약 + 검토**: Gemini로 4~6항목 요약 후, 원문과 대조해 한 번 더 교정한다. 본문이 이미지뿐인 기사는 이미지를 잘라 읽힌다. 한 번에 최대 30건.

@@ -33,7 +33,7 @@ const NO_SUMMARIZE = args.includes('--no-summarize');
 const MAX_FETCH = argVal('--max-fetch', 400);
 const MAX_SUMMARIES = argVal('--max-summaries', 30);
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-const GEMINI_DELAY_MS = 13000; // 무료 등급 분당 호출 제한(약 5회) 대비 — 상위 모델을 쓰기 위해 여유 있게
+const GEMINI_DELAY_MS = process.env.GEMINI_BACKEND === 'cli' ? 3000 : 13000; // 무료 등급 분당 호출 제한(약 5회) 대비 — 상위 모델을 쓰기 위해 여유 있게
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -282,7 +282,7 @@ async function researchPastMonths(state) {
 }
 
 // 요약 지시를 바꾸면 버전을 올린다 → 기존 요약도 차례로 다시 만든다
-const PROMPT_VERSION = 4;
+const PROMPT_VERSION = 5; // 5: 맥미니 Antigravity(Flash 요약 + Argon 검토)로 전환
 const SUMMARY_PROMPT = `너는 바쁜 약국 약사가 핵심을 빠르게 파악할 수 있게 학술 기사를 정리하는 편집자다.
 아래 약사공론 '대한약사저널' 기사 본문만 근거로 요약하라.
 
@@ -303,57 +303,139 @@ tags: 약물(성분)명·질환명 위주 3~4개, 공백 없이, # 없이.`;
 const IMAGE_FALLBACK_CHARS = 1500;
 const IMAGE_VERSION = 2; // 이미지 처리 방식을 바꾸면 올린다 → 이미지로 요약한 기사만 다시
 const MAX_IMAGE_PARTS = 10;
+const STRIP_HEIGHT = 1400;
 
-// 세로로 긴 이미지는 잘라서 보낸다 (ImageMagick 있으면). 반환: [{mime, data(base64)}]
-async function loadImageParts(urls) {
+// 세로로 긴 이미지를 STRIP_HEIGHT 높이로 자른다. ImageMagick(서버) 또는 sips(맥) 사용.
+async function splitImage(dir, src) {
   const { execFileSync } = await import('node:child_process');
+  try {
+    execFileSync('convert', [src, '-crop', `20000x${STRIP_HEIGHT}`, '+repage', '-quality', '85', path.join(dir, 'part_%02d.jpg')], { stdio: 'ignore' });
+  } catch {
+    try {
+      const info = execFileSync('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', src]).toString();
+      const w = Number(info.match(/pixelWidth: (\d+)/)[1]);
+      const h = Number(info.match(/pixelHeight: (\d+)/)[1]);
+      // 마지막 조각은 바닥 쪽에 맞춰 같은 높이로 자른다(약간 겹침)
+      if (h > STRIP_HEIGHT) {
+        for (let y = 0, i = 0; y < h; y += STRIP_HEIGHT, i++) {
+          const top = Math.min(y, h - STRIP_HEIGHT - 1); // 정확히 바닥에 닿으면 sips가 실패해서 1px 위로
+          execFileSync('sips', ['-c', String(STRIP_HEIGHT), String(w), '--cropOffset', String(top), '0', src,
+            '--out', path.join(dir, `part_${String(i).padStart(2, '0')}.jpg`)], { stdio: 'ignore' });
+        }
+      }
+    } catch {
+      // 자르는 도구가 없으면 원본 그대로
+    }
+  }
+  return (await fs.readdir(dir)).filter(f => f.startsWith('part_')).sort().map(f => path.join(dir, f));
+}
+
+// 반환: [{mime, path}] — 파일은 임시 폴더에 남겨 두고 요약이 끝나면 cleanupImages로 지운다
+async function loadImageParts(urls) {
   const os = await import('node:os');
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'kpj-img-'));
   const parts = [];
+  let n = 0;
   for (const url of urls.slice(0, 6)) {
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
     if (!res.ok) continue;
-    const buf = Buffer.from(await res.arrayBuffer());
-    let pieces = [buf];
-    try {
-      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'kpj-img-'));
-      const src = path.join(dir, 'src.jpg');
-      await fs.writeFile(src, buf);
-      execFileSync('convert', [src, '-crop', '20000x1400', '+repage', '-quality', '85', path.join(dir, 'part_%02d.jpg')]);
-      const files = (await fs.readdir(dir)).filter(f => f.startsWith('part_')).sort();
-      if (files.length) pieces = await Promise.all(files.map(f => fs.readFile(path.join(dir, f))));
-      await fs.rm(dir, { recursive: true, force: true });
-    } catch {
-      // ImageMagick 없으면 원본 그대로
-    }
-    for (const p of pieces) parts.push({ mime: 'image/jpeg', data: p.toString('base64') });
+    const sub = path.join(dir, String(n++));
+    await fs.mkdir(sub);
+    const src = path.join(sub, 'src.jpg');
+    await fs.writeFile(src, Buffer.from(await res.arrayBuffer()));
+    const pieces = await splitImage(sub, src);
+    for (const p of pieces.length ? pieces : [src]) parts.push({ mime: 'image/jpeg', path: p });
     if (parts.length >= MAX_IMAGE_PARTS) break;
   }
-  return parts.slice(0, MAX_IMAGE_PARTS);
+  const out = parts.slice(0, MAX_IMAGE_PARTS);
+  out.dir = dir; // 임시 폴더 (cleanupImages로 삭제)
+  return out;
 }
 
-async function summarize(article, body, imageParts = []) {
+async function cleanupImages(parts) {
+  if (parts?.dir) await fs.rm(parts.dir, { recursive: true, force: true });
+}
+
+// ===== Gemini 호출: API(GitHub 서버) 또는 Gemini CLI(맥, 구글 계정 로그인) =====
+// GEMINI_BACKEND=cli 이면 Antigravity CLI(agy) 사용. 모델: SUMMARY_MODEL(요약), REVIEW_MODEL(검토)
+const BACKEND = process.env.GEMINI_BACKEND || 'api';
+const SUMMARY_MODEL = process.env.SUMMARY_MODEL || '';
+const REVIEW_MODEL = process.env.REVIEW_MODEL || '';
+
+function parseJsonLoose(text) {
+  const t = String(text || '').replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+  try { return JSON.parse(t); } catch {}
+  const i = t.indexOf('{'), j = t.lastIndexOf('}');
+  if (i >= 0 && j > i) return JSON.parse(t.slice(i, j + 1));
+  throw new Error(`JSON 파싱 실패: ${t.slice(0, 200)}`);
+}
+
+// Antigravity CLI(agy): 구글 계정 로그인(Pro 구독)으로 Gemini 사용. 읽기 전용(plan) 모드, 명령 실행 권한 없음.
+async function agyCli(prompt, imageParts, model, properties) {
+  const { execFile } = await import('node:child_process');
+  const os = await import('node:os');
+  // 맥 임시 폴더는 /var → /private/var 심볼릭 링크라 실제 경로를 써야 작업 폴더 안 파일로 인정된다
+  const cwd = await fs.realpath(imageParts.dir || await fs.mkdtemp(path.join(os.tmpdir(), 'kpj-cli-')));
+  const imagePaths = await Promise.all(imageParts.map(p => fs.realpath(p.path)));
+  const imageNote = imageParts.length
+    ? `\n\n[기사 이미지] 아래 파일들이 기사 본문 이미지다(위에서 아래 순서로 이어진 한 장). 터미널 명령은 쓰지 말고 파일 보기 도구로 하나씩 직접 열어 이미지 속 글과 표를 읽어라.\n${imagePaths.join('\n')}`
+    : '';
+  const full = `${prompt}${imageNote}\n\n파일을 만들거나 계획서를 쓰지 말고, 결과만 JSON 스키마에 맞춰 바로 답하라.`;
+  const schema = JSON.stringify({ type: 'object', properties: Object.fromEntries(Object.keys(properties).map(k => [k, { type: 'array', items: { type: 'string' } }])), required: Object.keys(properties) });
+  const args = ['-p', full, '--output-format', 'json', '--json-schema', schema, '--mode', 'plan', '--print-timeout', '600s', '--add-dir', cwd,
+    // 이 임시 폴더의 파일 읽기만 허용 (명령 실행·쓰기는 계속 차단)
+    '--settings', JSON.stringify({ permissions: { allow: [`read_file(${cwd}/**)`] } })];
+  if (model) args.push('--model', model);
+  const stdout = await new Promise((resolve, reject) => {
+    execFile('agy', args, { cwd, maxBuffer: 20 * 1024 * 1024, timeout: 11 * 60 * 1000 }, (err, out, errOut) => {
+      if (err) {
+        const msg = `${errOut || ''}${out || ''}`.replace(/\s+/g, ' ').slice(0, 400);
+        reject(Object.assign(new Error(`Antigravity CLI 실패: ${msg}`), { quota: /quota|429|exhausted|limit/i.test(msg) }));
+      } else resolve(out);
+    });
+  });
+  if (!imageParts.dir) await fs.rm(cwd, { recursive: true, force: true });
+  if (process.env.KPJ_DEBUG) await fs.writeFile(path.join(process.env.KPJ_DEBUG, `agy-${Date.now()}.json`), stdout);
+  const wrapped = JSON.parse(stdout);
+  if (wrapped.status !== 'SUCCESS') throw new Error(`Antigravity CLI 상태 ${wrapped.status}: ${String(wrapped.response).slice(0, 200)}`);
+  let out = wrapped.structured_output;
+  // 구조화 결과가 비었거나 한 줄짜리 설명이면 본문 응답에서 JSON을 찾는다
+  if (!out || !Array.isArray(out.summaryPoints) || out.summaryPoints.length < 2) {
+    try { out = parseJsonLoose(wrapped.response); } catch { /* 구조화 결과 그대로 */ }
+  }
+  return { out: out || {}, model: model || 'antigravity' };
+}
+
+async function askJson({ prompt, imageParts = [], properties, temperature, model }) {
+  if (BACKEND === 'cli') return agyCli(prompt, imageParts, model, properties);
+  const inline = await Promise.all(imageParts.map(async p => ({
+    inline_data: { mime_type: p.mime, data: (await fs.readFile(p.path)).toString('base64') }
+  })));
   const data = await geminiRequest({
-    contents: [{ parts: [
-      { text: `${SUMMARY_PROMPT}\n\n제목: ${article.title}\n\n본문:\n${body.slice(0, 15000)}` },
-      ...imageParts.map(p => ({ inline_data: { mime_type: p.mime, data: p.data } }))
-    ] }],
+    contents: [{ parts: [{ text: prompt }, ...inline] }],
     generationConfig: {
-      temperature: 0.2,
+      temperature,
       responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'OBJECT',
-        properties: {
-          summaryPoints: { type: 'ARRAY', items: { type: 'STRING' } },
-          tags: { type: 'ARRAY', items: { type: 'STRING' } }
-        },
-        required: ['summaryPoints', 'tags']
-      }
+      responseSchema: { type: 'OBJECT', properties, required: Object.keys(properties) }
     }
   });
   const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
-  const out = JSON.parse(text);
+  return { out: JSON.parse(text), model: data.model };
+}
+
+const STR_ARRAY = { type: 'ARRAY', items: { type: 'STRING' } };
+
+async function summarize(article, body, imageParts = []) {
+  const { out, model } = await askJson({
+    prompt: `${SUMMARY_PROMPT}\n\n출력 형식: {"summaryPoints": [문자열...], "tags": [문자열...]}\n\n제목: ${article.title}\n\n본문:\n${body.slice(0, 15000)}`,
+    imageParts,
+    properties: { summaryPoints: STR_ARRAY, tags: STR_ARRAY },
+    temperature: 0.2,
+    model: SUMMARY_MODEL
+  });
   if (!Array.isArray(out.summaryPoints) || out.summaryPoints.length === 0) throw new Error('빈 요약');
-  out.model = data.model;
+  out.tags = Array.isArray(out.tags) ? out.tags : [];
+  out.model = model;
   return out;
 }
 
@@ -365,34 +447,23 @@ const REVIEW_PROMPT = `너는 약학 전문 교열자다. 아래 '요약 초안'
 - changes: 실제로 고친 내용을 "전 → 후" 형식으로 짧게 적는다. 없으면 빈 배열.`;
 
 async function reviewSummary(article, body, imageParts, draft) {
-  const data = await geminiRequest({
-    contents: [{ parts: [
-      { text: `${REVIEW_PROMPT}\n\n요약 초안(JSON):\n${JSON.stringify({ summaryPoints: draft.summaryPoints, tags: draft.tags })}\n\n제목: ${article.title}\n\n본문:\n${body.slice(0, 15000)}` },
-      ...imageParts.map(p => ({ inline_data: { mime_type: p.mime, data: p.data } }))
-    ] }],
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'OBJECT',
-        properties: {
-          summaryPoints: { type: 'ARRAY', items: { type: 'STRING' } },
-          tags: { type: 'ARRAY', items: { type: 'STRING' } },
-          changes: { type: 'ARRAY', items: { type: 'STRING' } }
-        },
-        required: ['summaryPoints', 'tags', 'changes']
-      }
-    }
+  const { out, model } = await askJson({
+    prompt: `${REVIEW_PROMPT}\n\n출력 형식: {"summaryPoints": [...], "tags": [...], "changes": [...]}\n\n요약 초안(JSON):\n${JSON.stringify({ summaryPoints: draft.summaryPoints, tags: draft.tags })}\n\n제목: ${article.title}\n\n본문:\n${body.slice(0, 15000)}`,
+    imageParts,
+    properties: { summaryPoints: STR_ARRAY, tags: STR_ARRAY, changes: STR_ARRAY },
+    temperature: 0.1,
+    model: REVIEW_MODEL
   });
-  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
-  const out = JSON.parse(text);
   if (!Array.isArray(out.summaryPoints) || out.summaryPoints.length === 0) throw new Error('빈 검토 결과');
+  out.tags = Array.isArray(out.tags) ? out.tags : draft.tags;
+  out.changes = Array.isArray(out.changes) ? out.changes : [];
+  out.model = model;
   return out;
 }
 
 async function summarizePending(articles) {
   if (NO_SUMMARIZE) return;
-  if (!process.env.GEMINI_API_KEY) {
+  if (BACKEND !== 'cli' && !process.env.GEMINI_API_KEY) {
     console.warn('GEMINI_API_KEY 없음 — 요약 건너뜀');
     return;
   }
@@ -406,10 +477,10 @@ async function summarizePending(articles) {
     .sort((a, b) => (b.summaryPoints?.length ? 0 : 1) - (a.summaryPoints?.length ? 0 : 1) || b.idxno - a.idxno);
   let done = 0;
   for (const a of pending.slice(0, MAX_SUMMARIES)) {
+    let imageParts = [];
     try {
       const html = await get(a.url);
       const { body, images } = parseArticle(a.idxno, html);
-      let imageParts = [];
       if (body.length < IMAGE_FALLBACK_CHARS && images.length) {
         imageParts = await loadImageParts(images);
         console.log(`  본문 글이 짧아 이미지 ${imageParts.length}조각으로 요약: ${a.title}`);
@@ -434,11 +505,14 @@ async function summarizePending(articles) {
       const rev = await reviewSummary(a, body, imageParts, a);
       Object.assign(a, clean(rev));
       a.reviewed = true;
+      a.reviewedBy = rev.model;
       done++;
       console.log(`검토 완료: ${a.title}${rev.changes?.length ? ` — 수정 ${rev.changes.length}건: ${rev.changes.join(' / ').slice(0, 200)}` : ' — 수정 없음'}`);
     } catch (e) {
       console.warn(`요약 실패 (${a.title}): ${e.message}`);
       if (e.quota) break;
+    } finally {
+      await cleanupImages(imageParts);
     }
     await sleep(GEMINI_DELAY_MS);
   }
@@ -459,7 +533,7 @@ async function main() {
   await fs.writeFile(ARTICLES_FILE, JSON.stringify(articles, null, 2) + '\n');
 }
 
-export { get, parseArticle, SUMMARY_PROMPT };
+export { get, parseArticle, SUMMARY_PROMPT, loadImageParts, cleanupImages, summarize, reviewSummary };
 
 // 직접 실행할 때만 수집·요약 (다른 스크립트에서 import 할 때는 실행 안 함)
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
