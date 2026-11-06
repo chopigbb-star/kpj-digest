@@ -137,19 +137,22 @@
       <!-- Category Pills -->
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0" id="categoryContainer">
         <button type="button" data-cat="all" class="cat-pill px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-emerald-600 text-white shadow-sm shadow-emerald-600/20">전체</button>
-        <button type="button" data-cat="약대약" class="cat-pill px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50">약대약</button>
-        <button type="button" data-cat="전문의약품(ETC)" class="cat-pill px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50">전문의약품(ETC)</button>
-        <button type="button" data-cat="일반의약품(OTC)" class="cat-pill px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50">일반의약품(OTC)</button>
-        <button type="button" data-cat="임상·복약노트" class="cat-pill px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50">임상·복약노트</button>
-        <button type="button" data-cat="질환별 가이드" class="cat-pill px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50">질환별 가이드</button>
       </div>
 
+      <div class="flex items-center gap-2">
+      <!-- View Mode -->
+      <div class="flex items-center bg-white border border-slate-200 rounded-xl p-0.5 text-xs font-semibold shrink-0" id="viewModeContainer">
+        <button type="button" data-view="list" class="view-btn px-3 py-1.5 rounded-lg bg-emerald-600 text-white">목록</button>
+        <button type="button" data-view="month" class="view-btn px-3 py-1.5 rounded-lg text-slate-600">월별</button>
+        <button type="button" data-view="week" class="view-btn px-3 py-1.5 rounded-lg text-slate-600">주별</button>
+      </div>
       <!-- Search Input -->
-      <div class="relative min-w-[240px]">
+      <div class="relative min-w-[200px] flex-1">
         <input id="searchInput" type="text" placeholder="약물명, 질환, 저자 검색..." class="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all placeholder-slate-400">
         <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
+      </div>
       </div>
     </div>
 
@@ -165,7 +168,7 @@
     </div>
 
     <!-- Article Cards Container -->
-    <div id="articlesList" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <div id="articlesList" class="flex flex-col gap-5">
       <!-- Article Cards injected via JS -->
     </div>
 
@@ -206,13 +209,7 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label for="newCategory" class="block font-medium text-slate-700 mb-1">카테고리</label>
-            <select id="newCategory" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="약대약">약대약</option>
-              <option value="전문의약품(ETC)">전문의약품(ETC)</option>
-              <option value="일반의약품(OTC)">일반의약품(OTC)</option>
-              <option value="임상·복약노트">임상·복약노트</option>
-              <option value="질환별 가이드">질환별 가이드</option>
-            </select>
+            <select id="newCategory" class="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
           </div>
           <div>
             <label for="newAuthor" class="block font-medium text-slate-700 mb-1">작성 약사 / 기자</label>
@@ -256,202 +253,108 @@
 
   <!-- Footer -->
   <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400">
-    <p>대한약사저널 핵심 요약 피드 &bull; 원문 저작권은 <a href="https://www.kpanews.co.kr/" target="_blank" rel="noopener noreferrer" class="underline hover:text-slate-600">약사공론(대한약사회)</a>에 있습니다.</p>
+    <p>요약은 Gemini가 원문을 바탕으로 자동 생성하며 오류가 있을 수 있습니다. 복약지도 전 반드시 원문을 확인하세요.</p>
+    <p class="mt-1">대한약사저널 핵심 요약 피드 &bull; 원문 저작권은 <a href="https://www.kpanews.co.kr/" target="_blank" rel="noopener noreferrer" class="underline hover:text-slate-600">약사공론(대한약사회)</a>에 있습니다.</p>
   </footer>
 
   <!-- Application Logic -->
   <script>
-    // Initial Seed Data from Authentic 대한약사저널 Articles
-    const INITIAL_ARTICLES = [
-      {
-        id: "kpj-01",
-        title: "[약대약] 아시클로버 vs 발라시클로버",
-        category: "약대약",
-        author: "제남경 약사",
-        date: "2026.11.02",
-        url: "https://www.kpanews.co.kr/news/articleView.html?idxno=547636",
-        summaryPoints: [
-          "아시클로버는 생체이용률이 15~30%로 낮아 1일 5회 복용해야 하지만, 발라시클로버는 L-발린 에스테르 전구체(Prodrug)로 흡수율이 약 54%로 높아 1일 2~3회 복용으로 복약 순응도가 대폭 개선됩니다.",
-          "외용 크림 제형은 아시클로버가 일반의약품(OTC)으로 약국에서 즉시 구입 가능하며, 물집이 잡히기 전 화끈거리는 전구증상 단계(24~48시간 이내)에 4시간 간격으로 도포해야 최적의 치료 효과를 냅니다.",
-          "신장 배설 약물이므로 신기능 저하(eGFR 저하) 환자는 반드시 감량 처방 여부를 확인하고, 결정뇨 예방을 위해 복용 중 충분한 수분 섭취를 철저히 지도해야 합니다."
-        ],
-        tags: ["구순포진", "항바이러스제", "약대약", "복약지도"],
-        completed: false
-      },
-      {
-        id: "kpj-02",
-        title: "[일반의약품] 연고 하나로 버티던 시대는 끝났다: 구내염 제형별 공략",
-        category: "일반의약품(OTC)",
-        author: "대한약사저널 학술팀",
-        date: "2026.11.02",
-        url: "https://www.kpanews.co.kr/news/articleView.html?idxno=547650",
-        summaryPoints: [
-          "구내염 환자 방문 시 단순 스테로이드 연고(트리암시놀론) 단일 권유에서 벗어나, 환자의 궤양 위치·통증 정도·식사 편의성에 맞춘 제형 선택이 필요합니다.",
-          "침에 씻겨나가기 쉬운 볼 안쪽이나 혀 아래에는 점착 패치형 필름제제가 우수하며, 다발성 병변이나 목젖 근처 통증에는 디클로페낙/벤지다민 소염진통 가글액이 훨씬 높은 순응도를 보입니다.",
-          "손상된 점막의 빠른 상피 재생을 위해 고함량 활성형 비타민B군(B2, B6) 복합제와 아연·글루타민 등 영양소 병용 상담을 제공하면 재발 방지에 매우 효과적입니다.",
-          "3주 이상 낫지 않거나 경계가 단단한 궤양은 단순 아프타성이 아닌 구강암 또는 전신질환 감별을 위해 이비인후과/치과 진료를 권고합니다."
-        ],
-        tags: ["구내염", "일반약", "제형별선택", "영양상담"],
-        completed: false
-      },
-      {
-        id: "kpj-03",
-        title: "[박정빈 약사의 비밀노트 시즌2] 스타틴 복약지도와 약국 실전 상담",
-        category: "임상·복약노트",
-        author: "박정빈 약사 (약줌마)",
-        date: "2026.11.02",
-        url: "https://www.kpanews.co.kr/news/articleView.html?idxno=547657",
-        summaryPoints: [
-          "이상지질혈증 1차 약제인 스타틴(Statin) 복용 환자의 다빈도 호소 증상인 근육통(근병증) 원인과 초기 대처법, 혈액검사(CPK) 확인 포인트를 정리했습니다.",
-          "심바스타틴 등 짧은 반감기 스타틴은 야간 간 콜레스테롤 합성 억제를 위해 취침 전 복용이 유리하지만, 아토르바스타틴·로수바스타틴은 반감기가 길어 하루 중 일정한 편한 시간에 복용해도 무방합니다.",
-          "스타틴이 체내 코엔자임Q10(CoQ10) 생합성 경로를 차단하여 발생하는 만성 피로와 근육 피로 완화를 위해 순도 높은 CoQ10 항산화 보충 상담을 병행합니다.",
-          "자몽주스(CYP3A4 대사 저해) 및 마크로라이드계 항생제, 아졸계 항진균제 병용 시 혈중 약물 농도 급상승에 따른 횡문근융해증 위험을 복약지도합니다."
-        ],
-        tags: ["스타틴", "이상지질혈증", "약사비밀노트", "상호작용"],
-        completed: false
-      },
-      {
-        id: "kpj-04",
-        title: "[전문의약품(ETC)] '구내염' 단계별 치료, '구순포진' 전구기 투여 중요",
-        category: "전문의약품(ETC)",
-        author: "조예란 약사",
-        date: "2026.11.02",
-        url: "https://www.kpanews.co.kr/news/articleView.html?idxno=547629",
-        summaryPoints: [
-          "재발성 아프타성 구내염과 헤르페스성 구순포진의 감별 진단: 입술 바깥 경계부에 군집을 이루는 수포는 단순포진 바이러스(HSV-1) 질환입니다.",
-          "경구 항바이러스제(팜시클로버, 발라시클로버 등)는 첫 수포가 육안으로 보이기 전 찌릿찌릿한 전구증상 발현 24시간 이내에 조기 투약해야 바이러스 복제 억제와 유병 기간 단축 효과가 가장 극대화됩니다.",
-          "심한 아프타성 구내염의 경우 국소 스테로이드 흡입제 분무나 단기 경구 스테로이드 요법을 고려할 수 있으며, 2차 세균감염 예방 지도가 동반되어야 합니다.",
-          "스트레스, 수면 부족, 월경 주기, 면역 저하 등 유발 원인을 복약 상담 시 함께 파악하여 생활 습관 교정을 유도합니다."
-        ],
-        tags: ["전문의약품", "구순포진", "구내염", "단계별치료"],
-        completed: false
-      },
-      {
-        id: "kpj-05",
-        title: "[전문의약품(ETC)] 중증도·내성 위험에 따라 달라지는 항생제 선택",
-        category: "전문의약품(ETC)",
-        author: "이현정 약사",
-        date: "2026.10.12",
-        url: "https://www.kpanews.co.kr/news/articleView.html?idxno=545807",
-        summaryPoints: [
-          "지역사회 획득 호흡기 감염 환자에서 환자의 기저질환(당뇨, 만성 심/신질환), 고령, 최근 3개월 이내 항생제 투약력에 따른 1차 선택 항생제 분류 가이드라인입니다.",
-          "레보플록사신(Levofloxacin) 등 퀴놀론계 항생제는 칼슘, 철분, 마그네슘 등 다가 금속이온 제제와 킬레이트 결합을 형성해 흡수가 급감하므로 최소 2시간 이상 복용 간격을 두도록 지도합니다.",
-          "고령자 및 당뇨 환자 투여 시 혈당 이상 변동(저혈당/고혈당) 및 심전도상 QT 간격 연장 위험에 대한 문진 체크리스트를 점검해야 합니다.",
-          "증상이 다소 호전되더라도 내성균 발생을 방지하기 위해 처방된 일수만큼 약을 끝까지 완복해야 함을 복약상담 시 강력히 안내합니다."
-        ],
-        tags: ["항생제", "호흡기감염", "약물상호작용", "처방검토"],
-        completed: false
-      },
-      {
-        id: "kpj-06",
-        title: "[약대약] 플루라제팜 vs 길초근/호프",
-        category: "약대약",
-        author: "김예지 약사",
-        date: "2026.04.20",
-        url: "https://www.kpanews.co.kr/news/articleView.html?idxno=533124",
-        summaryPoints: [
-          "플루라제팜은 벤조디아제핀계 전문의약품(향정신성)으로 GABA-A 수용체에 작용해 야간 각성과 수면 유지 장애에 효과적이나 신체적·정신적 의존성에 유의해야 합니다.",
-          "길초근/호프(Valerian/Hops) 추출물은 생약 성분의 일반의약품(OTC)으로 가벼운 신경 긴장 완화 및 수면 유도 보조제로 비향정 수면 옵션을 제공합니다.",
-          "플루라제팜은 활성 대사물로 인해 반감기가 길어 다음 날 낮 시간 졸림(Hangover 효과)이나 고령자 낙상 위험이 높으므로 운전 및 정밀 기계 조작 금지를 지도합니다.",
-          "두 약물 모두 알코올(술) 및 중추신경 억제제와 병용 시 과도한 진정 및 호흡 억제 위험이 있으므로 엄격한 금주를 안내해야 합니다."
-        ],
-        tags: ["수면제", "불면증", "약대약", "향정신성"],
-        completed: false
-      },
-      {
-        id: "kpj-07",
-        title: "[대한약사저널] 무엇이든 물어보세요 '통풍'",
-        category: "질환별 가이드",
-        author: "주혜성 기자",
-        date: "2023.10.31",
-        url: "https://www.kpanews.co.kr/news/articleView.html?idxno=246294",
-        summaryPoints: [
-          "통풍 급성 발작기 치료제(콜키신, NSAIDs, 경구 스테로이드)와 만성기 요산 저하제(알로푸리놀, 페북소스타트)는 목적과 복용 시점이 완전히 분리되어야 합니다.",
-          "급성 발작 발생 중에는 요산 강하제를 새로 투여하거나 임의로 중단하지 않아야 하며, 요산 농도의 급격한 변동이 관절 통증을 더욱 악화시킬 수 있음을 안내합니다.",
-          "알로푸리놀 시작 전 HLA-B*5801 유전자 검사가 권장되며, 복용 초기 발진이나 가려움 등 중증 피부약물이상반응(SCARs) 전조 증상 발생 시 즉시 복용을 멈추고 내원하도록 지도합니다.",
-          "생활요법으로는 맥주·육류 등 고퓨린 식품 및 액상과당 음료를 엄격히 제한하고, 하루 2L 이상의 충분한 수분을 섭취해 요산 배설을 도와야 합니다."
-        ],
-        tags: ["통풍", "요산강하제", "급성발작", "무엇이든물어보세요"],
-        completed: false
-      },
-      {
-        id: "kpj-08",
-        title: "[전문의약품(ETC)] 신기능·병용약물 따라 달라지는 항바이러스제 사용",
-        category: "전문의약품(ETC)",
-        author: "약사공론 학술팀",
-        date: "2026.11.05",
-        url: "https://www.kpanews.co.kr/news/articleView.html?idxno=548220",
-        summaryPoints: [
-          "인플루엔자 바이러스 치료제인 오셀타미비르(타미플루 등)와 1회 복용 제제인 발록사비르(조플루자)의 처방 검토 가이드라인입니다.",
-          "발록사비르는 1회 경구 복용으로 순응도가 매우 높으나, 제산제·칼슘·철분 등 다가 양이온 제제와 동시 복용 시 킬레이트 형성으로 흡수가 방해되므로 병용을 피해야 합니다.",
-          "신기능 저하(eGFR 저하) 환자의 경우 오셀타미비르 용량 감량 기준을 확인하고, 구토나 오심 등 위장장애 발생 시 식사와 함께 복용하도록 지도합니다.",
-          "소아 및 청소년 복용 시 이상행동 발현 가능성에 대비하여 투약 후 이틀간 보호자의 세심한 관찰과 창문 단속 등 안전 조치를 철저히 복약지도합니다."
-        ],
-        tags: ["인플루엔자", "항바이러스제", "신기능조절", "소아주의사항"],
-        completed: false
-      }
-    ];
+    // 기사 데이터는 data/articles.json (GitHub Actions가 매일 수집·요약해서 갱신)
+    let SOURCE_ARTICLES = [];
 
     // State
     let articles = [];
     let currentCategory = 'all';
     let searchQuery = '';
     let showCompletedOnly = false;
+    let viewMode = 'list';
     let lastDismissedArticle = null;
     let toastTimeout = null;
 
-    // LocalStorage helper with try/catch
     const STORAGE_KEY = 'kpj_journal_articles_v1';
+    const VIEW_KEY = 'kpj_view_mode';
+
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '#';
+
+    // 저장소에는 '다 읽음' 표시와 사용자가 직접 추가한 글만 남기고, 기사 내용은 항상 최신 데이터를 쓴다.
     function loadArticles() {
+      let savedList = [];
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          // Seed articles always come from INITIAL_ARTICLES (so edits to this file show up);
-          // only the completed flag and user-added articles are kept from storage.
-          const savedList = JSON.parse(saved);
-          const savedById = new Map(savedList.map(a => [a.id, a]));
-          const seedIds = new Set(INITIAL_ARTICLES.map(a => a.id));
-          const userAdded = savedList.filter(a => !seedIds.has(a.id) && a.id.startsWith('kpj-user-'));
-          const seeds = INITIAL_ARTICLES.map(a => ({
-            ...a,
-            completed: savedById.has(a.id) ? !!savedById.get(a.id).completed : false
-          }));
-          articles = [...userAdded, ...seeds];
-          return;
-        }
+        savedList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
       } catch (e) {
         console.warn('LocalStorage load failed:', e);
       }
-      articles = JSON.parse(JSON.stringify(INITIAL_ARTICLES));
+      const savedById = new Map(savedList.map(a => [a.id, a]));
+      const userAdded = savedList.filter(a => String(a.id).startsWith('kpj-user-'));
+      const seeds = SOURCE_ARTICLES.map(a => ({
+        ...a,
+        completed: savedById.has(a.id) ? !!savedById.get(a.id).completed : false
+      }));
+      articles = [...userAdded, ...seeds].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     }
 
     function saveArticles() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(articles));
+        const slim = articles.map(a => String(a.id).startsWith('kpj-user-') ? a : { id: a.id, completed: a.completed });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
       } catch (e) {
         console.warn('LocalStorage save failed:', e);
       }
     }
 
-    // Category badge styling helper
+    const BADGE_COLORS = ['blue', 'purple', 'emerald', 'amber', 'rose', 'sky', 'indigo', 'teal'];
+    const BADGE_CLASSES = {
+      blue: 'bg-blue-50 text-blue-700 border-blue-200',
+      purple: 'bg-purple-50 text-purple-700 border-purple-200',
+      emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      amber: 'bg-amber-50 text-amber-700 border-amber-200',
+      rose: 'bg-rose-50 text-rose-700 border-rose-200',
+      sky: 'bg-sky-50 text-sky-700 border-sky-200',
+      indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      teal: 'bg-teal-50 text-teal-700 border-teal-200'
+    };
+    let categoryList = [];
+
     function getCategoryBadge(cat) {
-      switch(cat) {
-        case '약대약':
-          return '<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">약대약</span>';
-        case '전문의약품(ETC)':
-          return '<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">전문의약품(ETC)</span>';
-        case '일반의약품(OTC)':
-          return '<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">일반의약품(OTC)</span>';
-        case '임상·복약노트':
-          return '<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">임상·복약노트</span>';
-        case '질환별 가이드':
-          return '<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">질환별 가이드</span>';
-        default:
-          return `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">${cat}</span>`;
-      }
+      const i = categoryList.indexOf(cat);
+      const cls = i >= 0 ? BADGE_CLASSES[BADGE_COLORS[i % BADGE_COLORS.length]] : 'bg-slate-100 text-slate-700 border-slate-200';
+      return `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold border ${cls}">${esc(cat)}</span>`;
     }
 
-    // Update Dashboard Stats & Progress
+    // 카테고리(코너) 버튼·선택지를 데이터에서 만든다 (기사 수 많은 순)
+    function buildCategories() {
+      const counts = {};
+      articles.forEach(a => { counts[a.category] = (counts[a.category] || 0) + 1; });
+      categoryList = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+      const container = document.getElementById('categoryContainer');
+      container.querySelectorAll('.cat-pill:not([data-cat="all"])').forEach(b => b.remove());
+      categoryList.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.cat = cat;
+        btn.className = 'cat-pill px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap';
+        btn.textContent = `${cat} ${counts[cat]}`;
+        container.appendChild(btn);
+      });
+
+      document.getElementById('newCategory').innerHTML = categoryList.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+
+      container.querySelectorAll('.cat-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.cat-pill').forEach(b => {
+            b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm', 'shadow-emerald-600/20');
+            b.classList.add('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+          });
+          btn.classList.add('bg-emerald-600', 'text-white', 'shadow-sm', 'shadow-emerald-600/20');
+          btn.classList.remove('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+          currentCategory = btn.dataset.cat || 'all';
+          renderArticles();
+        });
+      });
+    }
+
     function updateStats() {
       const total = articles.length;
       const read = articles.filter(a => a.completed).length;
@@ -463,218 +366,208 @@
       document.getElementById('progressPercent').textContent = percent + '%';
       document.getElementById('progressBar').style.width = percent + '%';
 
-      // Update button badge
       const btnText = document.getElementById('completedBtnText');
-      if (showCompletedOnly) {
-        btnText.textContent = `미완료 목록으로 (${unread})`;
-      } else {
-        btnText.textContent = `완료한 글 보기 (${read})`;
-      }
+      btnText.textContent = showCompletedOnly ? `미완료 목록으로 (${unread})` : `완료한 글 보기 (${read})`;
     }
 
-    // Toast Notification helper
     function showToast(message, allowUndo = false) {
       const toast = document.getElementById('toast');
-      const toastMsg = document.getElementById('toastMsg');
-      const undoBtn = document.getElementById('toastUndoBtn');
-
-      toastMsg.textContent = message;
-      if (allowUndo) {
-        undoBtn.classList.remove('hidden');
-      } else {
-        undoBtn.classList.add('hidden');
-      }
-
+      document.getElementById('toastMsg').textContent = message;
+      document.getElementById('toastUndoBtn').classList.toggle('hidden', !allowUndo);
       toast.classList.remove('hidden');
-
       if (toastTimeout) clearTimeout(toastTimeout);
-      toastTimeout = setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 4500);
+      toastTimeout = setTimeout(() => toast.classList.add('hidden'), 4500);
     }
 
-    // Toggle Complete (Mark as read or restore)
     function toggleArticleStatus(id) {
       const item = articles.find(a => a.id === id);
       if (!item) return;
-
-      const card = document.getElementById(`card-${id}`);
-
-      if (!item.completed) {
-        // Mark as completed -> fade out & disappear from active screen
-        if (card) {
-          card.classList.add('dismissing');
-          setTimeout(() => {
-            item.completed = true;
-            lastDismissedArticle = item;
-            saveArticles();
-            renderArticles();
-            updateStats();
-            showToast(`'${item.title.slice(0, 18)}...' 완료 처리되었습니다.`, true);
-          }, 240);
-        } else {
-          item.completed = true;
-          lastDismissedArticle = item;
-          saveArticles();
-          renderArticles();
-          updateStats();
-          showToast(`'${item.title.slice(0, 18)}...' 완료 처리되었습니다.`, true);
-        }
-      } else {
-        // Restore to unread
-        item.completed = false;
+      const finish = () => {
         saveArticles();
         renderArticles();
         updateStats();
+      };
+      if (!item.completed) {
+        const card = document.getElementById(`card-${id}`);
+        const done = () => {
+          item.completed = true;
+          lastDismissedArticle = item;
+          finish();
+          showToast(`'${item.title.slice(0, 18)}...' 완료 처리되었습니다.`, true);
+        };
+        if (card) {
+          card.classList.add('dismissing');
+          setTimeout(done, 240);
+        } else {
+          done();
+        }
+      } else {
+        item.completed = false;
+        finish();
         showToast(`'${item.title.slice(0, 18)}...' 다시 읽기 목록으로 복원되었습니다.`);
       }
     }
 
-    // Render Articles List
+    // 날짜 "2026.11.02" → Date
+    function parseDate(s) {
+      const [y, m, d] = String(s || '').split('.').map(Number);
+      return new Date(y || 1970, (m || 1) - 1, d || 1);
+    }
+    const pad = n => String(n).padStart(2, '0');
+
+    // 그룹 키·제목: 월별은 "2026년 11월", 주별은 월요일 시작 주 "2026.11.02 ~ 11.08"
+    function groupOf(a) {
+      const d = parseDate(a.date);
+      if (viewMode === 'month') {
+        return { key: `${d.getFullYear()}-${pad(d.getMonth() + 1)}`, label: `${d.getFullYear()}년 ${d.getMonth() + 1}월` };
+      }
+      const mon = new Date(d);
+      mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      const nth = Math.ceil(mon.getDate() / 7);
+      return {
+        key: `${mon.getFullYear()}-${pad(mon.getMonth() + 1)}-${pad(mon.getDate())}`,
+        label: `${mon.getFullYear()}년 ${mon.getMonth() + 1}월 ${nth}주차`,
+        sub: `${mon.getFullYear()}.${pad(mon.getMonth() + 1)}.${pad(mon.getDate())} ~ ${pad(sun.getMonth() + 1)}.${pad(sun.getDate())}`
+      };
+    }
+
+    function cardHtml(a) {
+      const isDone = a.completed;
+      const buttonHtml = isDone
+        ? `<button type="button" data-id="${esc(a.id)}" class="toggle-status-btn inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors">
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            다시 읽기 목록으로 복원
+          </button>`
+        : `<button type="button" data-id="${esc(a.id)}" class="toggle-status-btn inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+            </svg>
+            다 읽음 (화면에서 숨기기)
+          </button>`;
+
+      const tagBadges = (a.tags || []).map(t =>
+        `<span class="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">#${esc(t)}</span>`
+      ).join(' ');
+
+      const points = a.summaryPoints || [];
+      const pointsHtml = points.length
+        ? `<ul class="flex flex-col gap-2">${points.map((pt, idx) => `
+            <li class="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 leading-relaxed">
+              <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">${idx + 1}</span>
+              <span>${esc(pt)}</span>
+            </li>`).join('')}</ul>`
+        : `<p class="text-xs text-slate-400">요약 준비 중입니다. 자동 요약이 끝나면 여기에 표시됩니다.</p>`;
+
+      return `
+        <article id="card-${esc(a.id)}" class="article-card bg-white rounded-2xl p-5 border ${isDone ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200'} shadow-sm hover:shadow-md flex flex-col justify-between gap-4">
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <div class="flex items-center gap-2">
+                ${getCategoryBadge(a.category)}
+                <span class="text-xs text-slate-400">&bull;</span>
+                <span class="text-xs text-slate-500 font-medium">${esc(a.author || '학술팀')}</span>
+              </div>
+              <span class="text-xs text-slate-400 font-mono">${esc(a.date)}</span>
+            </div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-snug">${esc(a.title)}</h3>
+          </div>
+
+          <div class="bg-slate-50/80 rounded-xl p-3.5 border border-slate-100">
+            <div class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
+              </svg>
+              핵심 임상 & 복약 요약
+            </div>
+            ${pointsHtml}
+          </div>
+
+          <div class="flex flex-wrap gap-1.5">${tagBadges}</div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+            <div>${buttonHtml}</div>
+            <a href="${esc(safeUrl(a.url))}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-slate-600 hover:text-emerald-600 hover:underline transition-colors py-1.5 px-2.5 rounded-lg hover:bg-slate-50">
+              <span>원문 보기</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </div>
+        </article>`;
+    }
+
+    const GRID = 'grid grid-cols-1 md:grid-cols-2 gap-5';
+
     function renderArticles() {
       const container = document.getElementById('articlesList');
       const emptyState = document.getElementById('emptyState');
-      const completedBanner = document.getElementById('completedBanner');
+      document.getElementById('completedBanner').classList.toggle('hidden', !showCompletedOnly);
 
-      if (showCompletedOnly) {
-        completedBanner.classList.remove('hidden');
-      } else {
-        completedBanner.classList.add('hidden');
-      }
-
-      // Filter
       const q = searchQuery.trim().toLowerCase();
       const filtered = articles.filter(a => {
-        // Status filter
-        if (showCompletedOnly) {
-          if (!a.completed) return false;
-        } else {
-          if (a.completed) return false;
-        }
-
-        // Category filter
-        if (currentCategory !== 'all' && a.category !== currentCategory) {
-          return false;
-        }
-
-        // Search query
+        if (showCompletedOnly ? !a.completed : a.completed) return false;
+        if (currentCategory !== 'all' && a.category !== currentCategory) return false;
         if (q) {
-          const matchTitle = a.title.toLowerCase().includes(q);
-          const matchAuthor = a.author.toLowerCase().includes(q);
-          const matchPoints = a.summaryPoints.some(p => p.toLowerCase().includes(q));
-          const matchTags = a.tags ? a.tags.some(t => t.toLowerCase().includes(q)) : false;
-          if (!matchTitle && !matchAuthor && !matchPoints && !matchTags) return false;
+          const hay = [a.title, a.author, ...(a.summaryPoints || []), ...(a.tags || [])].join(' ').toLowerCase();
+          if (!hay.includes(q)) return false;
         }
-
         return true;
       });
 
       if (filtered.length === 0) {
         container.innerHTML = '';
         emptyState.classList.remove('hidden');
-
         const titleElem = document.getElementById('emptyTitle');
         const descElem = document.getElementById('emptyDesc');
-
         if (showCompletedOnly) {
           titleElem.textContent = '완료한 아티클이 없습니다.';
           descElem.textContent = '미완료 목록에서 읽은 아티클의 [✓ 다 읽음] 버튼을 누르면 이곳에 보관됩니다.';
+        } else if (articles.filter(a => !a.completed).length === 0) {
+          titleElem.textContent = '모든 아티클을 완독하셨습니다! 🎉';
+          descElem.textContent = '상단의 [완료한 글 보기] 버튼을 눌러 복습하거나, 새로운 저널을 등록해보세요.';
         } else {
-          const totalUnread = articles.filter(a => !a.completed).length;
-          if (totalUnread === 0) {
-            titleElem.textContent = '모든 아티클을 완독하셨습니다! 🎉';
-            descElem.textContent = '상단의 [완료한 글 보기] 버튼을 눌러 복습하거나, 새로운 저널을 등록해보세요.';
-          } else {
-            titleElem.textContent = '검색 조건에 맞는 아티클이 없습니다.';
-            descElem.textContent = '카테고리 필터나 검색어를 변경해보세요.';
-          }
+          titleElem.textContent = '검색 조건에 맞는 아티클이 없습니다.';
+          descElem.textContent = '카테고리 필터나 검색어를 변경해보세요.';
         }
         return;
       }
-
       emptyState.classList.add('hidden');
 
-      container.innerHTML = filtered.map(a => {
-        const isDone = a.completed;
-        const buttonHtml = isDone
-          ? `<button type="button" data-id="${a.id}" class="toggle-status-btn inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors">
-              <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              다시 읽기 목록으로 복원
-            </button>`
-          : `<button type="button" data-id="${a.id}" class="toggle-status-btn inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-              </svg>
-              다 읽음 (화면에서 숨기기)
-            </button>`;
-
-        const tagBadges = (a.tags || []).map(t =>
-          `<span class="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">#${t}</span>`
-        ).join(' ');
-
-        const pointsHtml = a.summaryPoints.map((pt, idx) => `
-          <li class="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 leading-relaxed">
-            <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">${idx + 1}</span>
-            <span>${pt}</span>
-          </li>
-        `).join('');
-
-        return `
-          <article id="card-${a.id}" class="article-card bg-white rounded-2xl p-5 border ${isDone ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200'} shadow-sm hover:shadow-md flex flex-col justify-between gap-4">
-            <!-- Card Header -->
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center justify-between gap-2 flex-wrap">
-                <div class="flex items-center gap-2">
-                  ${getCategoryBadge(a.category)}
-                  <span class="text-xs text-slate-400">&bull;</span>
-                  <span class="text-xs text-slate-500 font-medium">${a.author || '학술팀'}</span>
-                </div>
-                <span class="text-xs text-slate-400 font-mono">${a.date}</span>
+      if (viewMode === 'list') {
+        container.innerHTML = `<div class="${GRID}">${filtered.map(cardHtml).join('')}</div>`;
+      } else {
+        const groups = [];
+        const byKey = new Map();
+        filtered.forEach(a => {
+          const g = groupOf(a);
+          if (!byKey.has(g.key)) {
+            byKey.set(g.key, { ...g, items: [] });
+            groups.push(byKey.get(g.key));
+          }
+          byKey.get(g.key).items.push(a);
+        });
+        groups.sort((a, b) => b.key.localeCompare(a.key));
+        container.innerHTML = groups.map((g, i) => `
+          <details class="group" ${i < 2 ? 'open' : ''}>
+            <summary class="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50">
+              <div class="flex items-baseline gap-2">
+                <span class="text-sm sm:text-base font-bold text-slate-900">${esc(g.label)}</span>
+                ${g.sub ? `<span class="text-xs text-slate-400 font-mono">${esc(g.sub)}</span>` : ''}
               </div>
+              <span class="flex items-center gap-2 text-xs text-slate-500">
+                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-semibold">${g.items.length}건</span>
+                <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </span>
+            </summary>
+            <div class="${GRID} mt-4">${g.items.map(cardHtml).join('')}</div>
+          </details>`).join('');
+      }
 
-              <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-snug">
-                ${a.title}
-              </h3>
-            </div>
-
-            <!-- Summary Points (3-line summary) -->
-            <div class="bg-slate-50/80 rounded-xl p-3.5 border border-slate-100">
-              <div class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                  <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
-                </svg>
-                핵심 임상 & 복약 요약
-              </div>
-              <ul class="flex flex-col gap-2">
-                ${pointsHtml}
-              </ul>
-            </div>
-
-            <!-- Tags -->
-            <div class="flex flex-wrap gap-1.5">
-              ${tagBadges}
-            </div>
-
-            <!-- Actions: Check completed & Original link -->
-            <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-              <div>
-                ${buttonHtml}
-              </div>
-              <a href="${a.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-slate-600 hover:text-emerald-600 hover:underline transition-colors py-1.5 px-2.5 rounded-lg hover:bg-slate-50">
-                <span>원문 보기</span>
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-            </div>
-          </article>
-        `;
-      }).join('');
-
-      // Attach event listeners to all newly rendered toggle buttons
       container.querySelectorAll('.toggle-status-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-id');
@@ -683,136 +576,109 @@
       });
     }
 
-    // App Initialization & Event Listeners
-    document.addEventListener('DOMContentLoaded', () => {
-      loadArticles();
+    function setViewMode(mode) {
+      viewMode = mode;
+      try { localStorage.setItem(VIEW_KEY, mode); } catch (e) {}
+      document.querySelectorAll('.view-btn').forEach(b => {
+        const on = b.dataset.view === mode;
+        b.classList.toggle('bg-emerald-600', on);
+        b.classList.toggle('text-white', on);
+        b.classList.toggle('text-slate-600', !on);
+      });
       renderArticles();
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('data/articles.json', { cache: 'no-cache' });
+        SOURCE_ARTICLES = await res.json();
+      } catch (e) {
+        console.warn('articles.json load failed:', e);
+        showToast('기사 데이터를 불러오지 못했습니다. 잠시 후 새로고침해주세요.');
+      }
+      loadArticles();
+      buildCategories();
+      let savedView = 'list';
+      try { savedView = localStorage.getItem(VIEW_KEY) || 'list'; } catch (e) {}
+      setViewMode(['list', 'month', 'week'].includes(savedView) ? savedView : 'list');
       updateStats();
 
-      // Category filter buttons
-      document.querySelectorAll('.cat-pill').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.cat-pill').forEach(b => {
-            b.classList.remove('bg-emerald-600', 'text-white', 'shadow-sm', 'shadow-emerald-600/20');
-            b.classList.add('bg-white', 'text-slate-600', 'border', 'border-slate-200');
-          });
-          btn.classList.add('bg-emerald-600', 'text-white', 'shadow-sm', 'shadow-emerald-600/20');
-          btn.classList.remove('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+      document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => setViewMode(b.dataset.view)));
 
-          currentCategory = btn.getAttribute('data-cat') || 'all';
-          renderArticles();
-        });
-      });
-
-      // Search input listener
-      const searchInput = document.getElementById('searchInput');
-      searchInput.addEventListener('input', (e) => {
+      document.getElementById('searchInput').addEventListener('input', (e) => {
         searchQuery = e.target.value;
         renderArticles();
       });
 
-      // Toggle completed view
       const toggleCompletedBtn = document.getElementById('toggleCompletedBtn');
-      toggleCompletedBtn.addEventListener('click', () => {
-        showCompletedOnly = !showCompletedOnly;
-        if (showCompletedOnly) {
-          toggleCompletedBtn.classList.remove('bg-slate-100', 'text-slate-700');
-          toggleCompletedBtn.classList.add('bg-emerald-100', 'text-emerald-800', 'border-emerald-300');
-        } else {
-          toggleCompletedBtn.classList.remove('bg-emerald-100', 'text-emerald-800', 'border-emerald-300');
-          toggleCompletedBtn.classList.add('bg-slate-100', 'text-slate-700');
-        }
+      const setCompletedView = (on) => {
+        showCompletedOnly = on;
+        toggleCompletedBtn.classList.toggle('bg-emerald-100', on);
+        toggleCompletedBtn.classList.toggle('text-emerald-800', on);
+        toggleCompletedBtn.classList.toggle('border-emerald-300', on);
+        toggleCompletedBtn.classList.toggle('bg-slate-100', !on);
+        toggleCompletedBtn.classList.toggle('text-slate-700', !on);
         renderArticles();
         updateStats();
-      });
+      };
+      toggleCompletedBtn.addEventListener('click', () => setCompletedView(!showCompletedOnly));
+      document.getElementById('closeCompletedViewBtn').addEventListener('click', () => setCompletedView(false));
 
-      // Close completed view banner button
-      document.getElementById('closeCompletedViewBtn').addEventListener('click', () => {
-        showCompletedOnly = false;
-        toggleCompletedBtn.classList.remove('bg-emerald-100', 'text-emerald-800', 'border-emerald-300');
-        toggleCompletedBtn.classList.add('bg-slate-100', 'text-slate-700');
-        renderArticles();
-        updateStats();
-      });
-
-      // Reset All button
       document.getElementById('resetAllBtn').addEventListener('click', () => {
-        articles = JSON.parse(JSON.stringify(INITIAL_ARTICLES));
-        saveArticles();
-        showCompletedOnly = false;
-        toggleCompletedBtn.classList.remove('bg-emerald-100', 'text-emerald-800', 'border-emerald-300');
-        toggleCompletedBtn.classList.add('bg-slate-100', 'text-slate-700');
-        renderArticles();
-        updateStats();
-        showToast('초기 아티클 목록으로 재설정되었습니다.');
+        if (!confirm('읽음 표시와 직접 추가한 글을 모두 지우고 처음 상태로 되돌릴까요?')) return;
+        try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+        loadArticles();
+        buildCategories();
+        setCompletedView(false);
+        showToast('초기 상태로 재설정되었습니다.');
       });
 
-      // Toast Undo button
       document.getElementById('toastUndoBtn').addEventListener('click', () => {
         if (lastDismissedArticle) {
           lastDismissedArticle.completed = false;
           saveArticles();
           renderArticles();
           updateStats();
-          document.getElementById('toast').classList.add('hidden');
           showToast(`'${lastDismissedArticle.title.slice(0, 18)}...' 복원 완료`);
           lastDismissedArticle = null;
         }
       });
 
-      // Modal Controls
       const addModal = document.getElementById('addModal');
-      const addArticleBtn = document.getElementById('addArticleBtn');
-      const closeModalBtn = document.getElementById('closeModalBtn');
-      const cancelAddBtn = document.getElementById('cancelAddBtn');
       const addArticleForm = document.getElementById('addArticleForm');
-
-      function openModal() {
-        addModal.classList.remove('hidden');
-      }
-      function closeModal() {
+      const openModal = () => addModal.classList.remove('hidden');
+      const closeModal = () => {
         addModal.classList.add('hidden');
         addArticleForm.reset();
-      }
+      };
+      document.getElementById('addArticleBtn').addEventListener('click', openModal);
+      document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+      document.getElementById('cancelAddBtn').addEventListener('click', closeModal);
+      addModal.addEventListener('click', (e) => { if (e.target === addModal) closeModal(); });
 
-      addArticleBtn.addEventListener('click', openModal);
-      closeModalBtn.addEventListener('click', closeModal);
-      cancelAddBtn.addEventListener('click', closeModal);
-      addModal.addEventListener('click', (e) => {
-        if (e.target === addModal) closeModal();
-      });
-
-      // Submit new article
       addArticleForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const title = document.getElementById('newTitle').value.trim();
-        const category = document.getElementById('newCategory').value;
+        const category = document.getElementById('newCategory').value || '기타';
         const author = document.getElementById('newAuthor').value.trim() || '학술팀';
         const url = document.getElementById('newUrl').value.trim();
         const summaryRaw = document.getElementById('newSummary').value.trim();
         const tagsRaw = document.getElementById('newTags').value.trim();
-
         if (!title || !url || !summaryRaw) return;
 
         const summaryPoints = summaryRaw.split('\n')
           .map(line => line.replace(/^[•\-\*0-9\.\s]+/, '').trim())
           .filter(line => line.length > 0);
-
         const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
 
-        const newArticle = {
+        articles.unshift({
           id: 'kpj-user-' + Date.now(),
-          title: title,
-          category: category,
-          author: author,
+          title, category, author, url,
           date: new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
-          url: url,
           summaryPoints: summaryPoints.length > 0 ? summaryPoints : [summaryRaw],
-          tags: tags,
+          tags,
           completed: false
-        };
-
-        articles.unshift(newArticle);
+        });
         saveArticles();
         closeModal();
         renderArticles();
