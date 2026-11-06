@@ -126,61 +126,129 @@
  },
  "issues": {
   "5400": {
-   "date": "2025-03-03"
+   "date": "2025-03-03",
+   "issueNo": 243,
+   "issueTheme": "당뇨병Ⅰ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5401": {
-   "date": "2025-03-10"
+   "date": "2025-03-10",
+   "issueNo": 244,
+   "issueTheme": "당뇨병Ⅱ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5402": {
-   "date": "2025-03-17"
+   "date": "2025-03-17",
+   "issueNo": 245,
+   "issueTheme": "당뇨병Ⅲ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5403": {
-   "date": "2025-03-24"
+   "date": "2025-03-24",
+   "issueNo": 246,
+   "issueTheme": "당뇨병Ⅳ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5404": {
-   "date": "2025-04-07"
+   "date": "2025-04-07",
+   "issueNo": 247,
+   "issueTheme": "류마티스관절염Ⅰ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5405": {
    "date": "2025-04-14"
   },
   "5406": {
-   "date": "2025-04-21"
+   "date": "2025-04-21",
+   "issueNo": 249,
+   "issueTheme": "류마티스관절염 Ⅲ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5407": {
-   "date": "2025-04-28"
+   "date": "2025-04-28",
+   "issueNo": 250,
+   "issueTheme": "류마티스관절염Ⅳ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5408": {
-   "date": "2025-05-05"
+   "date": "2025-05-05",
+   "issueNo": 251,
+   "issueTheme": "갱년기Ⅰ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5409": {
-   "date": "2025-05-12"
+   "date": "2025-05-12",
+   "issueNo": 252,
+   "issueTheme": "갱년기Ⅱ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5410": {
-   "date": "2025-05-19"
+   "date": "2025-05-19",
+   "issueNo": 253,
+   "issueTheme": "갱년기Ⅲ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5411": {
    "date": "2025-05-26"
   },
   "5412": {
-   "date": "2025-06-02"
+   "date": "2025-06-02",
+   "issueNo": 255,
+   "issueTheme": "건선 Ⅰ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5413": {
-   "date": "2025-06-09"
+   "date": "2025-06-09",
+   "issueNo": 256,
+   "issueTheme": "건선Ⅱ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5414": {
-   "date": "2025-06-16"
+   "date": "2025-06-16",
+   "issueNo": 257,
+   "issueTheme": "건선Ⅲ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5415": {
-   "date": "2025-06-23"
+   "date": "2025-06-23",
+   "issueNo": 258,
+   "issueTheme": "건선Ⅳ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5416": {
-   "date": "2025-07-07"
+   "date": "2025-07-07",
+   "issueNo": 259,
+   "issueTheme": "뇌졸중Ⅰ",
+   "promptVersion": 3,
+   "articles": 8
   },
   "5417": {
-   "date": "2025-07-14"
+   "date": "2025-07-14",
+   "issueNo": 260,
+   "issueTheme": "뇌졸중Ⅱ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5418": {
-   "date": "2025-07-21"
+   "date": "2025-07-21",
+   "issueNo": 261,
+   "issueTheme": "뇌졸중Ⅲ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5419": {
    "date": "2025-07-28",
@@ -232,7 +300,11 @@
    "articles": 9
   },
   "5426": {
-   "date": "2025-09-15"
+   "date": "2025-09-15",
+   "issueNo": 269,
+   "issueTheme": "치질Ⅲ",
+   "promptVersion": 3,
+   "articles": 10
   },
   "5427": {
    "date": "2025-09-22",
@@ -242,7 +314,11 @@
    "articles": 10
   },
   "5428": {
-   "date": "2025-10-06"
+   "date": "2025-10-06",
+   "issueNo": 271,
+   "issueTheme": "안구건조증Ⅰ",
+   "promptVersion": 3,
+   "articles": 10
   },
   "5429": {
    "date": "2025-10-13",
@@ -252,7 +328,11 @@
    "articles": 8
   },
   "5430": {
-   "date": "2025-10-20"
+   "date": "2025-10-20",
+   "issueNo": 273,
+   "issueTheme": "안구건조증Ⅲ",
+   "promptVersion": 3,
+   "articles": 10
   },
   "5431": {
    "date": "2025-10-27",
@@ -262,7 +342,11 @@
    "articles": 9
   },
   "5432": {
-   "date": "2025-11-03"
+   "date": "2025-11-03",
+   "issueNo": 275,
+   "issueTheme": "B형간염Ⅰ",
+   "promptVersion": 3,
+   "articles": 10
   },
   "5433": {
    "date": "2025-11-10",
@@ -279,7 +363,11 @@
    "articles": 9
   },
   "5435": {
-   "date": "2025-11-24"
+   "date": "2025-11-24",
+   "issueNo": 278,
+   "issueTheme": "B형간염Ⅳ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5436": {
    "date": "2025-12-01",
@@ -404,7 +492,11 @@
    "articles": 6
   },
   "5454": {
-   "date": "2026-04-20"
+   "date": "2026-04-20",
+   "issueNo": 297,
+   "issueTheme": "정신신경계1 수면장애 Ⅰ",
+   "promptVersion": 3,
+   "articles": 7
   },
   "5455": {
    "date": "2026-04-27",
@@ -487,98 +579,98 @@
    "date": "2026-07-20",
    "issueNo": 309,
    "issueTheme": "정신신경계2 두통·편두통Ⅲ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 6
   },
   "5467": {
    "date": "2026-07-27",
    "issueNo": 310,
    "issueTheme": "정신신경계2 중독",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 7
   },
   "5468": {
    "date": "2026-08-03",
    "issueNo": 311,
    "issueTheme": "정신신경계2 치매Ⅰ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 7
   },
   "5469": {
    "date": "2026-08-10",
    "issueNo": 312,
    "issueTheme": "정신신경계2 치매Ⅱ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 8
   },
   "5470": {
    "date": "2026-08-17",
    "issueNo": 313,
    "issueTheme": "정신신경계2 파킨슨Ⅰ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 6
   },
   "5471": {
    "date": "2026-08-24",
    "issueNo": 314,
    "issueTheme": "정신신경계2 파킨슨Ⅱ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 8
   },
   "5472": {
    "date": "2026-09-07",
    "issueNo": 315,
    "issueTheme": "호흡기계 감기Ⅰ- 인후염·발열",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 11
   },
   "5473": {
    "date": "2026-09-14",
    "issueNo": 316,
    "issueTheme": "호흡기계 감기Ⅱ- 기침·가래",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 10
   },
   "5474": {
    "date": "2026-09-21",
    "issueNo": 317,
-   "issueTheme": "호흡기계 감기Ⅲ- 콧물·코막힘",
-   "promptVersion": 2,
+   "issueTheme": "호흡기계 감기Ⅲ - 콧물·코막힘",
+   "promptVersion": 3,
    "articles": 10
   },
   "5475": {
    "date": "2026-09-28",
    "issueNo": 318,
    "issueTheme": "호흡기계 감염성 호흡기질환Ⅰ - 부비동염·중이염",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 9
   },
   "5476": {
    "date": "2026-10-05",
    "issueNo": 319,
    "issueTheme": "호흡기계 감염성 호흡기질환Ⅱ - 독감·코로나19",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 9
   },
   "5477": {
    "date": "2026-10-12",
    "issueNo": 320,
    "issueTheme": "호흡기계 감염성 호흡기질환Ⅲ - 폐렴·결핵",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 9
   },
   "5478": {
    "date": "2026-10-19",
    "issueNo": 321,
    "issueTheme": "호흡기계 만성·면역성 호흡기질환Ⅰ - 알레르기비염",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 9
   },
   "5479": {
    "date": "2026-10-26",
    "issueNo": 322,
    "issueTheme": "호흡기계 만성·면역성 호흡기질환Ⅱ - 천식·COPD",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 9
   },
   "5480": {
