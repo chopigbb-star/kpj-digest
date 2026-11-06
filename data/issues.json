@@ -199,7 +199,11 @@
    "articles": 8
   },
   "5411": {
-   "date": "2025-05-26"
+   "date": "2025-05-26",
+   "issueNo": 254,
+   "issueTheme": "갱년기Ⅳ",
+   "promptVersion": 3,
+   "articles": 9
   },
   "5412": {
    "date": "2025-06-02",
@@ -530,49 +534,49 @@
    "date": "2026-05-25",
    "issueNo": 302,
    "issueTheme": "정신신경계1 ADHDⅡ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 7
   },
   "5460": {
    "date": "2026-06-08",
    "issueNo": 303,
    "issueTheme": "여행·예방접종 여행의학·여행약학Ⅰ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 5
   },
   "5461": {
    "date": "2026-06-15",
    "issueNo": 304,
    "issueTheme": "여행·예방접종 여행의학·여행약학Ⅱ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 7
   },
   "5462": {
    "date": "2026-06-22",
    "issueNo": 305,
    "issueTheme": "여행·예방접종 예방접종Ⅰ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 6
   },
   "5463": {
    "date": "2026-06-29",
    "issueNo": 306,
    "issueTheme": "여행·예방접종 예방접종Ⅱ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 7
   },
   "5464": {
    "date": "2026-07-06",
    "issueNo": 307,
    "issueTheme": "정신신경계2 두통·편두통Ⅰ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 6
   },
   "5465": {
    "date": "2026-07-13",
    "issueNo": 308,
    "issueTheme": "정신신경계2 두통·편두통Ⅱ",
-   "promptVersion": 2,
+   "promptVersion": 3,
    "articles": 4
   },
   "5466": {
