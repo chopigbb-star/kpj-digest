@@ -420,7 +420,12 @@
    "articles": 5
   },
   "5442": {
-   "date": "2026-01-19"
+   "date": "2026-01-19",
+   "issueNo": 285,
+   "issueTheme": "순환기계질환 고혈압III",
+   "splitPages": true,
+   "promptVersion": 3,
+   "articles": 4
   },
   "5443": {
    "date": "2026-01-26",

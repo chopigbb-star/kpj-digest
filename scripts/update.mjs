@@ -66,17 +66,63 @@ async function listIssues(month) {
     .filter(i => i.date.startsWith(month)); // 이전·다음 달 링크 제외
 }
 
-function pdfUrl(issue, page = 1) {
+// 면별 PDF (check.php의 page는 보통 무시되고 호 전체가 오지만, 면마다 따로 올라간 호도 있다)
+function pageUrl(issue, page) {
   const [y, m, d] = issue.date.split('-');
-  return `${BASE}/pdf/php/check.php?category=hagsul&y=${y}&m=${m}&d=${d}&page=1&hosu=${issue.hosu}#page=${page}`;
+  return `${BASE}/pdf/php/check.php?category=hagsul&y=${y}&m=${m}&d=${d}&page=${page}&hosu=${issue.hosu}`;
 }
 
-// 학술지 호(예: 323호) — 목록 페이지 머리말에서 읽는다
-async function issueNumber(issue) {
+// '원문 보기' 링크: 호 전체 PDF면 #page로 해당 면, 면별로 올라간 호면 그 면의 PDF
+function pdfUrl(issue, page = 1) {
+  return issue.splitPages ? pageUrl(issue, page) : `${pageUrl(issue, 1)}#page=${page}`;
+}
+
+const pdfPageCount = buf => Math.max(0, ...[...buf.toString('latin1').matchAll(/\/Count\s+(\d+)/g)].map(m => Number(m[1])));
+
+// 학술지 호(예: 323호)와 면 수 — 목록 페이지에서 읽는다
+async function issueInfo(issue) {
   const y = issue.date.slice(0, 4);
   const html = await get(`${BASE}/pdf/list.html?category=hagsul&syear=${y}&hosu=${issue.hosu}-${issue.date}`);
   const m = html.match(/학술지\s*\d+년\s*\d+월\s*\d+일\s*(\d+)호/);
-  return m ? Number(m[1]) : null;
+  return { issueNo: m ? Number(m[1]) : null, pages: (html.match(/class="pdf-list-image"/g) || []).length };
+}
+
+// 호 PDF 받기. 반환: 면 순서대로의 PDF 파일 경로 배열
+async function downloadIssue(issue, dir, listPages) {
+  const full = await get(pageUrl(issue, 1), true);
+  if (full.subarray(0, 4).toString() !== '%PDF') throw new Error('PDF가 아님');
+  if (pdfPageCount(full) > 1 || listPages <= 1) {
+    const f = path.join(dir, `${issue.hosu}.pdf`);
+    await fs.writeFile(f, full);
+    issue.splitPages = false;
+    return [f];
+  }
+  // 1면짜리만 왔으면 면별로 따로 받는다
+  const files = [];
+  for (let p = 1; p <= listPages; p++) {
+    const buf = p === 1 ? full : await get(pageUrl(issue, p), true);
+    if (buf.subarray(0, 4).toString() !== '%PDF') continue;
+    const f = path.join(dir, `${issue.hosu}-p${String(p).padStart(2, '0')}.pdf`);
+    await fs.writeFile(f, buf);
+    files.push(f);
+    if (p > 1) await sleep(500);
+  }
+  issue.splitPages = true;
+  console.log(`   면별 PDF ${files.length}개로 받음`);
+  // 면별 PDF는 한 면에 수 MB짜리 스캔이라 그대로는 읽기 도구가 못 연다 → 맥 기본 도구(sips)로 면마다 JPEG로 바꾼다
+  try {
+    const images = [];
+    for (const f of files) {
+      const jpg = f.replace(/\.pdf$/, '.jpg');
+      await new Promise((resolve, reject) => execFile('sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', '80', '-Z', '2000', f, '--out', jpg],
+        err => (err ? reject(err) : resolve())));
+      images.push(jpg);
+    }
+    await Promise.all(files.map(f => fs.rm(f, { force: true })));
+    return images;
+  } catch {
+    return files; // sips가 없으면(서버) PDF 그대로
+  }
 }
 
 const PROMPT = `너는 바쁜 약국 약사가 핵심을 빠르게 파악할 수 있게 학술지를 정리하는 편집자다.
@@ -146,9 +192,11 @@ function parseJsonLoose(text) {
 }
 
 // Antigravity CLI: 읽기 전용(plan) 모드, 이 PDF 폴더만 읽기 허용 (명령 실행·쓰기 차단)
-async function askAgy(pdfPath) {
-  const dir = await fs.realpath(path.dirname(pdfPath)); // 맥 임시 폴더는 /var → /private/var 링크
-  const file = path.join(dir, path.basename(pdfPath));
+async function askAgy(pdfFiles) {
+  const dir = await fs.realpath(path.dirname(pdfFiles[0])); // 맥 임시 폴더는 /var → /private/var 링크
+  const files = pdfFiles.map(f => path.join(dir, path.basename(f)));
+  const file = files.length === 1 ? files[0]
+    : `\n${files.map((f, i) => `${i + 1}면: ${f}`).join('\n')}\n(이 호는 면마다 이미지 파일로 나뉘어 있다. 터미널 명령은 쓰지 말고, 파일 보기 도구로 각 이미지를 1면부터 하나씩 직접 열어 모두 읽은 뒤 한 호로 정리하라. firstPage와 pages는 위 면 번호를 쓴다.)`;
   const prompt = `${PROMPT}\n\n[PDF] 터미널 명령은 쓰지 말고 파일 보기 도구로 이 파일을 직접 열어 모든 면을 읽어라: ${file}\n\n파일을 만들거나 계획서를 쓰지 말고, 결과만 JSON 스키마에 맞춰 바로 답하라.`;
   const cliArgs = ['-p', prompt, '--output-format', 'json', '--json-schema', JSON.stringify(SCHEMA),
     '--mode', 'plan', '--print-timeout', '900s', '--add-dir', dir, '--model', SUMMARY_MODEL,
@@ -164,14 +212,19 @@ async function askAgy(pdfPath) {
   if (process.env.KPJ_DEBUG) await fs.writeFile(path.join(process.env.KPJ_DEBUG, `agy-${Date.now()}.json`), stdout);
   const wrapped = JSON.parse(stdout);
   if (wrapped.status !== 'SUCCESS') throw new Error(`Antigravity CLI 상태 ${wrapped.status}: ${String(wrapped.response).slice(0, 200)}`);
-  if (wrapped.denied_actions?.length) throw new Error(`권한 거부: ${JSON.stringify(wrapped.denied_actions)}`);
   let out = wrapped.structured_output;
-  if (!out?.articles?.length) out = parseJsonLoose(wrapped.response);
+  if (!out?.articles?.length) {
+    try { out = parseJsonLoose(wrapped.response); } catch { out = null; }
+  }
+  // 명령 실행이 거부됐어도 결과가 나왔으면 쓴다
+  if (!out?.articles?.length) {
+    throw new Error(wrapped.denied_actions?.length ? `권한 거부: ${JSON.stringify(wrapped.denied_actions)}` : '빈 결과');
+  }
   return out;
 }
 
 // Gemini API(예비용, GitHub Actions): PDF를 그대로 첨부
-async function askApi(pdfPath) {
+async function askApi(pdfFiles) {
   const toApiSchema = s => {
     if (s.type === 'object') return { type: 'OBJECT', properties: Object.fromEntries(Object.entries(s.properties).map(([k, v]) => [k, toApiSchema(v)])), required: s.required };
     if (s.type === 'array') return { type: 'ARRAY', items: toApiSchema(s.items) };
@@ -183,7 +236,7 @@ async function askApi(pdfPath) {
     body: JSON.stringify({
       contents: [{ parts: [
         { text: PROMPT },
-        { inline_data: { mime_type: 'application/pdf', data: (await fs.readFile(pdfPath)).toString('base64') } }
+        ...await Promise.all(pdfFiles.map(async f => ({ inline_data: { mime_type: f.endsWith('.jpg') ? 'image/jpeg' : 'application/pdf', data: (await fs.readFile(f)).toString('base64') } })))
       ] }],
       generationConfig: { temperature: 0.2, responseMimeType: 'application/json', responseSchema: toApiSchema(SCHEMA) }
     })
@@ -261,17 +314,16 @@ async function main() {
     for (const issue of todo.slice(0, MAX_ISSUES)) {
       const t0 = Date.now();
       try {
-        const issueNo = issue.issueNo || await issueNumber(issue);
-        const pdfPath = path.join(tmp, `${issue.hosu}.pdf`);
-        const pdf = await get(pdfUrl(issue).replace(/#.*$/, ''), true);
-        if (pdf.subarray(0, 4).toString() !== '%PDF') throw new Error('PDF가 아님');
-        await fs.writeFile(pdfPath, pdf);
-        const out = BACKEND === 'cli' ? await askAgy(pdfPath) : await askApi(pdfPath);
-        await fs.rm(pdfPath, { force: true });
+        const info = await issueInfo(issue);
+        const issueNo = issue.issueNo || info.issueNo;
+        const dir = await fs.mkdtemp(path.join(tmp, `${issue.hosu}-`));
+        const files = await downloadIssue(issue, dir, info.pages);
+        const out = BACKEND === 'cli' ? await askAgy(files) : await askApi(files);
+        await fs.rm(dir, { recursive: true, force: true });
         const found = toArticles(issue, issueNo, out);
         if (!found.length) throw new Error('기사를 찾지 못함');
         articles = articles.filter(a => a.hosu !== issue.hosu).concat(found);
-        state.issues[issue.hosu] = { ...state.issues[issue.hosu], issueNo, issueTheme: found[0].issueTheme, promptVersion: PROMPT_VERSION, articles: found.length };
+        state.issues[issue.hosu] = { ...state.issues[issue.hosu], issueNo, issueTheme: found[0].issueTheme, splitPages: issue.splitPages, promptVersion: PROMPT_VERSION, articles: found.length };
         done++;
         console.log(`제${issueNo}호(${issue.date}) [${found[0].issueTheme}] 기사 ${found.length}편 — ${Math.round((Date.now() - t0) / 1000)}초`);
         found.forEach(a => console.log(`   ${a.pages}면 [${a.category}] ${a.title}`));
