@@ -7,7 +7,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ARTICLES_FILE = path.join(ROOT, 'data/articles.json');
@@ -258,7 +258,7 @@ async function researchPastMonths(state) {
 
 // 요약 지시를 바꾸면 버전을 올린다 → 기존 요약도 차례로 다시 만든다
 const PROMPT_VERSION = 3;
-const SUMMARY_PROMPT = `너는 바쁜 약국 약사가 30초 안에 읽을 수 있게 학술 기사를 정리하는 편집자다.
+const SUMMARY_PROMPT = `너는 바쁜 약국 약사가 핵심을 빠르게 파악할 수 있게 학술 기사를 정리하는 편집자다.
 아래 약사공론 '대한약사저널' 기사 본문만 근거로 요약하라.
 
 summaryPoints 작성 규칙:
@@ -342,4 +342,9 @@ async function main() {
   await fs.writeFile(ARTICLES_FILE, JSON.stringify(articles, null, 2) + '\n');
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+export { get, parseArticle, SUMMARY_PROMPT };
+
+// 직접 실행할 때만 수집·요약 (다른 스크립트에서 import 할 때는 실행 안 함)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(e => { console.error(e); process.exit(1); });
+}
