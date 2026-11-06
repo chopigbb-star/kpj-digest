@@ -12,6 +12,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ARTICLES_FILE = path.join(ROOT, 'data/articles.json');
 const STATE_FILE = path.join(ROOT, 'data/crawl-state.json');
+// 사용자가 직접 모은 기사 주소(또는 idxno 번호) 목록 — 한 줄에 하나, 아무 텍스트가 섞여 있어도 됨
+const MANUAL_FILE = path.join(ROOT, 'data/manual-urls.txt');
 
 const BASE = 'https://www.kpanews.co.kr';
 const RSS_URL = `${BASE}/rss/allArticle.xml`;
@@ -122,6 +124,15 @@ async function discover(articles, state) {
   }
   // 이전 실행에서 한도 때문에 못 본 후보
   (state.pending || []).forEach(enqueue);
+  try {
+    const manual = await fs.readFile(MANUAL_FILE, 'utf8');
+    const ids = [...manual.matchAll(/idxno=(\d+)|^\s*(\d{5,7})\s*$/gm)].map(m => Number(m[1] || m[2]));
+    const before = queue.length;
+    ids.forEach(enqueue);
+    if (ids.length) console.log(`직접 입력 목록: ${ids.length}건 중 새 후보 ${queue.length - before}건`);
+  } catch {
+    // 파일 없으면 건너뜀
+  }
 
   let fetched = 0, added = 0;
   while (queue.length && fetched < MAX_FETCH) {
@@ -345,6 +356,39 @@ async function summarize(article, body, imageParts = []) {
   return out;
 }
 
+const REVIEW_PROMPT = `너는 약학 전문 교열자다. 아래 '요약 초안'을 기사 원문(본문 글과 이미지)과 한 줄씩 대조해 검토하고 고친 결과를 돌려줘라.
+- 약물명·성분명·상품명 오탈자를 원문 표기대로 고친다 (이미지 판독 오류, 예: "무종약"→"무좀약", "중중"→"중증").
+- 용량·수치·기간·비율이 원문과 다르면 원문대로 고친다.
+- 원문에서 확인되지 않는 내용은 삭제한다. 새로운 내용을 추가하지 않는다.
+- 항목 구성, "핵심어: 내용" 형식, "~한다/~이다" 문체는 유지한다. 고칠 것이 없으면 그대로 돌려준다.
+- changes: 실제로 고친 내용을 "전 → 후" 형식으로 짧게 적는다. 없으면 빈 배열.`;
+
+async function reviewSummary(article, body, imageParts, draft) {
+  const data = await geminiRequest({
+    contents: [{ parts: [
+      { text: `${REVIEW_PROMPT}\n\n요약 초안(JSON):\n${JSON.stringify({ summaryPoints: draft.summaryPoints, tags: draft.tags })}\n\n제목: ${article.title}\n\n본문:\n${body.slice(0, 15000)}` },
+      ...imageParts.map(p => ({ inline_data: { mime_type: p.mime, data: p.data } }))
+    ] }],
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          summaryPoints: { type: 'ARRAY', items: { type: 'STRING' } },
+          tags: { type: 'ARRAY', items: { type: 'STRING' } },
+          changes: { type: 'ARRAY', items: { type: 'STRING' } }
+        },
+        required: ['summaryPoints', 'tags', 'changes']
+      }
+    }
+  });
+  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+  const out = JSON.parse(text);
+  if (!Array.isArray(out.summaryPoints) || out.summaryPoints.length === 0) throw new Error('빈 검토 결과');
+  return out;
+}
+
 async function summarizePending(articles) {
   if (NO_SUMMARIZE) return;
   if (!process.env.GEMINI_API_KEY) {
@@ -353,8 +397,10 @@ async function summarizePending(articles) {
   }
   // 최신 기사부터 요약
   // 요약 없는 기사 먼저(최신순), 그다음 예전 지시로 만든 요약(최신순)
-  const stale = a => !a.summaryPoints?.length || (a.promptVersion || 1) < PROMPT_VERSION
+  const needSummary = a => !a.summaryPoints?.length || (a.promptVersion || 1) < PROMPT_VERSION
     || (a.fromImages && (a.imageVersion || 1) < IMAGE_VERSION);
+  // 요약은 됐지만 아직 검토를 안 거친 기사도 대상 (검토만 수행)
+  const stale = a => needSummary(a) || !a.reviewed;
   const pending = articles.filter(stale)
     .sort((a, b) => (b.summaryPoints?.length ? 0 : 1) - (a.summaryPoints?.length ? 0 : 1) || b.idxno - a.idxno);
   let done = 0;
@@ -368,15 +414,27 @@ async function summarizePending(articles) {
         console.log(`  본문 글이 짧아 이미지 ${imageParts.length}조각으로 요약: ${a.title}`);
       }
       if (body.length < 200 && !imageParts.length) { console.warn(`본문 짧음, 건너뜀: ${a.title}`); continue; }
-      const out = await summarize(a, body, imageParts);
-      a.fromImages = imageParts.length > 0;
-      if (a.fromImages) a.imageVersion = IMAGE_VERSION;
-      a.summaryPoints = out.summaryPoints.map(s => s.trim()).filter(Boolean).slice(0, 7);
-      a.tags = out.tags.map(t => t.replace(/^#/, '').trim()).filter(Boolean).slice(0, 5);
-      a.summarizedBy = out.model;
-      a.promptVersion = PROMPT_VERSION;
+      const clean = out => ({
+        summaryPoints: out.summaryPoints.map(s => s.trim()).filter(Boolean).slice(0, 7),
+        tags: out.tags.map(t => t.replace(/^#/, '').trim()).filter(Boolean).slice(0, 5)
+      });
+      if (needSummary(a)) {
+        const out = await summarize(a, body, imageParts);
+        a.fromImages = imageParts.length > 0;
+        if (a.fromImages) a.imageVersion = IMAGE_VERSION;
+        Object.assign(a, clean(out));
+        a.summarizedBy = out.model;
+        a.promptVersion = PROMPT_VERSION;
+        a.reviewed = false;
+        console.log(`요약 완료: ${a.title}`);
+        await sleep(GEMINI_DELAY_MS);
+      }
+      // 2차 검토: 원문과 대조해 오탈자·수치·근거 없는 내용 교정
+      const rev = await reviewSummary(a, body, imageParts, a);
+      Object.assign(a, clean(rev));
+      a.reviewed = true;
       done++;
-      console.log(`요약 완료: ${a.title}`);
+      console.log(`검토 완료: ${a.title}${rev.changes?.length ? ` — 수정 ${rev.changes.length}건: ${rev.changes.join(' / ').slice(0, 200)}` : ' — 수정 없음'}`);
     } catch (e) {
       console.warn(`요약 실패 (${a.title}): ${e.message}`);
       if (e.quota) break;
