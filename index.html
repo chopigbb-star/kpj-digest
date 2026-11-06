@@ -169,7 +169,7 @@
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
       <!-- Category Pills -->
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0" id="categoryContainer">
-        <button type="button" data-cat="all" class="cat-pill px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-emerald-600 text-white shadow-sm shadow-emerald-600/20">전체</button>
+        <button type="button" data-cat="all" class="cat-pill shrink-0 whitespace-nowrap px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-emerald-600 text-white shadow-sm shadow-emerald-600/20">전체</button>
       </div>
 
       <div class="flex items-center gap-2">
@@ -306,6 +306,32 @@
 
     const STORAGE_KEY = 'kpj_journal_articles_v1';
     const VIEW_KEY = 'kpj_view_mode';
+    const NOTES_KEY = 'kpj_notes_v1';
+
+    // 즐겨찾기·메모: { [기사 id]: { star, memo, t } } — 이 기기 브라우저에만 저장
+    let notes = {};
+    function loadNotes() {
+      try { notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}'); } catch (e) { notes = {}; }
+    }
+    function saveNotes() {
+      try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch (e) { console.warn('notes save failed', e); }
+    }
+    const isStarred = a => !!notes[a.id]?.star;
+    const memoOf = a => notes[a.id]?.memo || '';
+    function setNote(id, patch) {
+      notes[id] = { ...(notes[id] || {}), ...patch, t: Date.now() };
+      if (!notes[id].star && !notes[id].memo) delete notes[id];
+      saveNotes();
+    }
+    // '즐겨찾기'·'메모' 모아보기는 읽음 여부와 상관없이 모두 보여준다
+    const SPECIAL_CATS = { __star: '⭐ 즐겨찾기', __memo: '📝 메모' };
+    const isSpecialCat = () => currentCategory in SPECIAL_CATS;
+    function matchesCategory(a) {
+      if (currentCategory === 'all') return true;
+      if (currentCategory === '__star') return isStarred(a);
+      if (currentCategory === '__memo') return !!memoOf(a).trim();
+      return a.category === currentCategory;
+    }
 
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '#';
@@ -364,11 +390,19 @@
 
       const container = document.getElementById('categoryContainer');
       container.querySelectorAll('.cat-pill:not([data-cat="all"])').forEach(b => b.remove());
+      Object.entries(SPECIAL_CATS).forEach(([key, label]) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.cat = key;
+        btn.className = 'cat-pill shrink-0 px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-white text-slate-600 border border-amber-200 hover:bg-amber-50 whitespace-nowrap';
+        btn.innerHTML = `${label} <span class="special-count" data-for="${key}"></span>`;
+        container.appendChild(btn);
+      });
       categoryList.forEach(cat => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.dataset.cat = cat;
-        btn.className = 'cat-pill px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap';
+        btn.className = 'cat-pill shrink-0 px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap';
         btn.textContent = `${cat} ${counts[cat]}`;
         container.appendChild(btn);
       });
@@ -387,6 +421,12 @@
           renderArticles();
         });
       });
+      updateSpecialCounts();
+    }
+
+    function updateSpecialCounts() {
+      const counts = { __star: articles.filter(isStarred).length, __memo: articles.filter(a => memoOf(a).trim()).length };
+      document.querySelectorAll('.special-count').forEach(el => { el.textContent = counts[el.dataset.for]; });
     }
 
     function updateStats() {
@@ -473,7 +513,7 @@
       const nth = Math.ceil(mon.getDate() / 7);
       return {
         key: `${mon.getFullYear()}-${pad(mon.getMonth() + 1)}-${pad(mon.getDate())}`,
-        label: `${mon.getFullYear()}년 ${mon.getMonth() + 1}월 ${nth}주차`,
+        label: `${mon.getFullYear()}년 ${mon.getMonth() + 1}월 ${nth}주차${a.issueNo ? ` · 제${a.issueNo}호` : ''}`,
         sub: `${mon.getFullYear()}.${pad(mon.getMonth() + 1)}.${pad(mon.getDate())} ~ ${pad(sun.getMonth() + 1)}.${pad(sun.getDate())}`
       };
     }
@@ -507,18 +547,25 @@
             </li>`).join('')}</ul>`
         : `<p class="text-xs text-slate-400">요약 준비 중입니다. 자동 요약이 끝나면 여기에 표시됩니다.</p>`;
 
+      const starred = isStarred(a);
+      const memo = memoOf(a);
+      const where = [a.issueNo ? `제${a.issueNo}호` : '', a.pages ? `${a.pages}면` : ''].filter(Boolean).join(' · ');
+      const byline = [a.author || '학술팀', a.affiliation ? `(${a.affiliation})` : ''].filter(Boolean).join(' ');
+
       return `
-        <article id="card-${esc(a.id)}" class="article-card bg-white rounded-2xl p-5 border ${isDone ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200'} shadow-sm hover:shadow-md flex flex-col justify-between gap-4">
+        <article id="card-${esc(a.id)}" class="article-card bg-white rounded-2xl p-5 border ${starred ? 'border-amber-300' : isDone ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200'} shadow-sm hover:shadow-md flex flex-col justify-between gap-4">
           <div class="flex flex-col gap-2">
-            <div class="flex items-center justify-between gap-2 flex-wrap">
-              <div class="flex items-center gap-2">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 flex-wrap min-w-0">
                 ${getCategoryBadge(a.category)}
-                <span class="text-xs text-slate-400">&bull;</span>
-                <span class="text-xs text-slate-500 font-medium">${esc(a.author || '학술팀')}</span>
+                ${where ? `<span class="text-xs text-slate-500 font-medium">${esc(where)}</span>` : ''}
+                <span class="text-xs text-slate-400 font-mono">${esc(a.date)}</span>
               </div>
-              <span class="text-xs text-slate-400 font-mono">${esc(a.date)}</span>
+              <button type="button" data-id="${esc(a.id)}" class="star-btn shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors ${starred ? 'text-amber-500 bg-amber-50 hover:bg-amber-100' : 'text-slate-300 hover:text-amber-400 hover:bg-slate-50'}" title="${starred ? '즐겨찾기 해제' : '나중에 다시 보기 (즐겨찾기)'}" aria-pressed="${starred}">${starred ? '★' : '☆'}</button>
             </div>
             <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-snug">${esc(a.title)}</h3>
+            ${a.subtitle ? `<p class="text-xs sm:text-sm text-slate-500 leading-snug -mt-1">${esc(a.subtitle)}</p>` : ''}
+            <p class="text-xs text-slate-500">${esc(byline)}</p>
           </div>
 
           <div class="bg-slate-50/80 rounded-xl p-3.5 border border-slate-100">
@@ -534,10 +581,15 @@
 
           <div class="flex flex-wrap gap-1.5">${tagBadges}</div>
 
+          <div>
+            <button type="button" data-id="${esc(a.id)}" class="memo-toggle inline-flex items-center gap-1 text-xs font-semibold ${memo ? 'text-amber-700' : 'text-slate-500 hover:text-slate-700'}">📝 ${memo ? '내 메모' : '메모 쓰기'}</button>
+            <textarea data-id="${esc(a.id)}" rows="3" placeholder="이 기사에 대한 메모 (이 기기에 자동 저장)" class="memo-input mt-2 w-full px-3 py-2 text-xs sm:text-sm bg-amber-50/50 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-300 ${memo ? '' : 'hidden'}">${esc(memo)}</textarea>
+          </div>
+
           <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
             <div>${buttonHtml}</div>
             <a href="${esc(safeUrl(a.url))}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-slate-600 hover:text-emerald-600 hover:underline transition-colors py-1.5 px-2.5 rounded-lg hover:bg-slate-50">
-              <span>원문 보기</span>
+              <span>원문 보기${a.firstPage ? ` <span class="text-slate-400 font-normal">PDF ${esc(a.firstPage)}면</span>` : ''}</span>
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
@@ -565,7 +617,8 @@
 
     function matchesSearch(a, q) {
       if (!q) return true;
-      return [a.title, a.author, ...(a.summaryPoints || []), ...(a.tags || [])].join(' ').toLowerCase().includes(q);
+      return [a.title, a.subtitle, a.author, a.affiliation, a.category, a.issueTheme, memoOf(a), ...(a.summaryPoints || []), ...(a.tags || [])]
+        .join(' ').toLowerCase().includes(q);
     }
 
     const dayKey = t => {
@@ -609,9 +662,10 @@
         byCat[a.category].total++;
         if (a.completed) byCat[a.category].done++;
       });
+      // 코너 정복 배지는 기사가 5편 이상인 코너만
       categoryList.forEach(cat => {
         const c = byCat[cat];
-        if (c) out.push({ id: 'cat:' + cat, icon: '🏅', name: `${cat} 정복`, desc: `${cat} ${c.done}/${c.total}`, got: c.done === c.total });
+        if (c && c.total >= 5) out.push({ id: 'cat:' + cat, icon: '🏅', name: `${cat} 정복`, desc: `${cat} ${c.done}/${c.total}`, got: c.done === c.total });
       });
       return out;
     }
@@ -707,8 +761,8 @@
 
       const q = searchQuery.trim().toLowerCase();
       const filtered = articles.filter(a => {
-        if (showCompletedOnly ? !a.completed : a.completed) return false;
-        if (currentCategory !== 'all' && a.category !== currentCategory) return false;
+        if (!isSpecialCat() && (showCompletedOnly ? !a.completed : a.completed)) return false;
+        if (!matchesCategory(a)) return false;
         return matchesSearch(a, q);
       });
 
@@ -717,7 +771,13 @@
         emptyState.classList.remove('hidden');
         const titleElem = document.getElementById('emptyTitle');
         const descElem = document.getElementById('emptyDesc');
-        if (showCompletedOnly) {
+        if (currentCategory === '__star') {
+          titleElem.textContent = '즐겨찾기한 기사가 없습니다.';
+          descElem.textContent = '나중에 다시 볼 기사 카드의 ☆ 버튼을 누르면 여기에 모입니다.';
+        } else if (currentCategory === '__memo') {
+          titleElem.textContent = '메모한 기사가 없습니다.';
+          descElem.textContent = '기사 카드의 [📝 메모]를 눌러 적어두면 여기에 모입니다.';
+        } else if (showCompletedOnly) {
           titleElem.textContent = '완료한 아티클이 없습니다.';
           descElem.textContent = '미완료 목록에서 읽은 아티클의 [✓ 다 읽음] 버튼을 누르면 이곳에 보관됩니다.';
         } else if (articles.filter(a => !a.completed).length === 0) {
@@ -738,7 +798,7 @@
         const shownIds = new Set(filtered.map(a => a.id));
         const groups = [];
         const byKey = new Map();
-        articles.filter(a => (currentCategory === 'all' || a.category === currentCategory) && matchesSearch(a, q)).forEach(a => {
+        articles.filter(a => matchesCategory(a) && matchesSearch(a, q)).forEach(a => {
           const g = groupOf(a);
           if (!byKey.has(g.key)) {
             byKey.set(g.key, { ...g, all: [], items: [] });
@@ -756,13 +816,20 @@
           const pct = Math.round(done / total * 100);
           const cleared = done === total;
           const open = g.items.length > 0 && opened++ < 2;
+          // 이 묶음에 들어 있는 호와 표지 주제
+          const issues = [...new Map(g.all.filter(a => a.issueNo).map(a => [a.issueNo, a.issueTheme])).entries()].sort((x, y) => y[0] - x[0]);
+          const themesHtml = issues.length ? `<div class="flex flex-wrap gap-1.5 mt-1.5">${issues.map(([no, theme]) =>
+            `<span class="text-[11px] px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">${viewMode === 'month' ? `제${no}호 · ` : '📚 '}${esc(theme || '주제 없음')}</span>`).join('')}</div>` : '';
           return `
           <details class="group" ${open ? 'open' : ''}>
             <summary class="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3 border rounded-xl shadow-sm ${cleared ? 'bg-amber-50/60 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}">
-              <div class="flex items-center gap-2 flex-wrap min-w-0">
-                <span class="text-sm sm:text-base font-bold text-slate-900">${esc(g.label)}</span>
-                ${g.sub ? `<span class="text-xs text-slate-400 font-mono">${esc(g.sub)}</span>` : ''}
-                ${cleared ? '<span class="clear-stamp">★ CLEAR</span>' : ''}
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm sm:text-base font-bold text-slate-900">${esc(g.label)}</span>
+                  ${g.sub ? `<span class="text-xs text-slate-400 font-mono">${esc(g.sub)}</span>` : ''}
+                  ${cleared ? '<span class="clear-stamp">★ CLEAR</span>' : ''}
+                </div>
+                ${themesHtml}
               </div>
               <span class="flex items-center gap-2 text-xs text-slate-500 shrink-0">
                 <span class="hidden sm:block w-24 bg-slate-100 rounded-full h-2 overflow-hidden"><span class="block h-2 rounded-full ${cleared ? 'bg-amber-400' : 'bg-emerald-500'}" style="width:${pct}%"></span></span>
@@ -781,6 +848,42 @@
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-id');
           if (id) toggleArticleStatus(id);
+        });
+      });
+      container.querySelectorAll('.star-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const on = !notes[id]?.star;
+          setNote(id, { star: on });
+          updateSpecialCounts();
+          renderArticles();
+          showToast(on ? '⭐ 즐겨찾기에 추가했습니다. 상단 [⭐ 즐겨찾기]에서 모아 볼 수 있습니다.' : '즐겨찾기에서 뺐습니다.');
+        });
+      });
+      container.querySelectorAll('.memo-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const ta = container.querySelector(`.memo-input[data-id="${CSS.escape(btn.dataset.id)}"]`);
+          ta.classList.toggle('hidden');
+          if (!ta.classList.contains('hidden')) ta.focus();
+        });
+      });
+      // 입력하는 동안 자동 저장 (다시 그리지 않아 커서가 유지됨)
+      const memoTimers = {};
+      container.querySelectorAll('.memo-input').forEach(ta => {
+        ta.addEventListener('input', () => {
+          const id = ta.dataset.id;
+          clearTimeout(memoTimers[id]);
+          memoTimers[id] = setTimeout(() => {
+            setNote(id, { memo: ta.value });
+            updateSpecialCounts();
+            const btn = container.querySelector(`.memo-toggle[data-id="${CSS.escape(id)}"]`);
+            if (btn) {
+              const has = !!ta.value.trim();
+              btn.textContent = has ? '📝 내 메모' : '📝 메모 쓰기';
+              btn.classList.toggle('text-amber-700', has);
+              btn.classList.toggle('text-slate-500', !has);
+            }
+          }, 400);
         });
       });
     }
@@ -805,11 +908,12 @@
         console.warn('articles.json load failed:', e);
         showToast('기사 데이터를 불러오지 못했습니다. 잠시 후 새로고침해주세요.');
       }
+      loadNotes();
       loadArticles();
       buildCategories();
-      let savedView = 'list';
-      try { savedView = localStorage.getItem(VIEW_KEY) || 'list'; } catch (e) {}
-      setViewMode(['list', 'month', 'week'].includes(savedView) ? savedView : 'list');
+      let savedView = 'week';
+      try { savedView = localStorage.getItem(VIEW_KEY) || 'week'; } catch (e) {}
+      setViewMode(['list', 'month', 'week'].includes(savedView) ? savedView : 'week');
       updateStats();
 
       document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => setViewMode(b.dataset.view)));
@@ -834,7 +938,7 @@
       document.getElementById('closeCompletedViewBtn').addEventListener('click', () => setCompletedView(false));
 
       document.getElementById('resetAllBtn').addEventListener('click', () => {
-        if (!confirm('읽음 표시와 직접 추가한 글을 모두 지우고 처음 상태로 되돌릴까요?')) return;
+        if (!confirm('읽음 표시와 직접 추가한 글을 모두 지우고 처음 상태로 되돌릴까요? (즐겨찾기·메모는 그대로 둡니다)')) return;
         try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
         loadArticles();
         buildCategories();

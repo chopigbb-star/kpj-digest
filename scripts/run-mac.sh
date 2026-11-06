@@ -1,6 +1,6 @@
 #!/bin/bash
-# 맥미니에서 4시간마다 실행: 수집 → Antigravity CLI(agy, 구글 계정 로그인·Pro 구독 한도)로 요약·검토 → GitHub에 올림
-# 모델 설정: scripts/mac.env (SUMMARY_MODEL, REVIEW_MODEL)
+# 맥미니에서 4시간마다 실행: 수집 → Antigravity CLI(agy, 구글 계정 로그인·Pro 구독 한도)로 학술지 PDF 요약 → GitHub에 올림
+# 설정: scripts/mac.env (SUMMARY_MODEL, UPDATE_ARGS)
 set -euo pipefail
 export PATH="$HOME/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 cd "$(dirname "$0")/.."
@@ -20,7 +20,7 @@ echo "=== $(date '+%Y-%m-%d %H:%M:%S') 시작 ==="
 [ -f scripts/mac.env ] && source scripts/mac.env
 
 git pull -q --rebase
-GEMINI_BACKEND=cli SUMMARY_MODEL="${SUMMARY_MODEL:-}" REVIEW_MODEL="${REVIEW_MODEL:-}" \
+GEMINI_BACKEND=cli SUMMARY_MODEL="${SUMMARY_MODEL:-}" \
   node scripts/update.mjs ${UPDATE_ARGS:-}
 
 git add data/

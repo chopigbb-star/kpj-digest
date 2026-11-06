@@ -23,13 +23,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: 이미지 도구 확인
-        run: command -v convert || (sudo apt-get update -q && sudo apt-get install -y -q imagemagick)
-
       - name: 수집·요약
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          SUMMARY_MODEL: ${{ vars.GEMINI_MODEL }}
         run: node scripts/update.mjs
 
       - name: 변경 사항 커밋
