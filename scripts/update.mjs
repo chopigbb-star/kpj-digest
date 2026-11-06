@@ -167,7 +167,7 @@ function monthsSinceStart() {
 }
 
 // 과부하(503)·한도(429)·없는 모델(404)이면 다음 모델로 넘어간다.
-const MODELS = [...new Set([GEMINI_MODEL, 'gemini-flash-lite-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'])];
+const MODELS = [...new Set([GEMINI_MODEL, 'gemini-flash-lite-latest'])];
 const deadModels = new Set(); // 이번 실행에서 한도 초과/없음으로 확인된 모델
 
 async function geminiRequest(body) {
