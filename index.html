@@ -13,6 +13,15 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23059669'/%3E%3Cpath d='M28 72H20a2 2 0 01-2-2V26a2 2 0 012-2h40a2 2 0 012 2v2m2 44a2 2 0 01-2-2V30m2 42a2 2 0 002-2V34a2 2 0 00-2-2h-4m-12-8H36m-6 30h20m-20-16h20v8H30v-8z' stroke='white' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="manifest" href='data:application/manifest+json,{"name":"대한약사저널 요약","short_name":"약사저널","start_url":".","display":"standalone","background_color":"%23ffffff","theme_color":"%23059669"}'>
 
+  <script>
+    // 글자 크기: html 기본 크기를 바꾸면 rem 단위인 글자·여백이 함께 커진다
+    const FONT_SCALES = [100, 112.5, 125, 137.5, 150];
+    const FONT_KEY = 'kpj_font_scale';
+    function applyFontScale(i) {
+      document.documentElement.style.fontSize = FONT_SCALES[i] + '%';
+    }
+    try { applyFontScale(Math.min(FONT_SCALES.length - 1, Math.max(0, Number(localStorage.getItem(FONT_KEY)) || 0))); } catch (e) {}
+  </script>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <!-- Google Fonts: Inter & Pretendard -->
@@ -85,12 +94,12 @@
             <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">대한약사저널 핵심 요약 피드</h1>
             <span class="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">KPJ Digest</span>
           </div>
-          <p class="text-xs text-slate-500">약사공론 대한약사저널 학술·임상 아티클 3줄 요약 & 원문 리더</p>
+          <p class="text-xs text-slate-500">약사공론 대한약사저널 학술·임상 아티클 요약 & 원문 리더</p>
         </div>
       </div>
 
       <!-- Action buttons -->
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <button id="addArticleBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -104,6 +113,11 @@
           </svg>
           <span id="completedBtnText">완료한 글 보기</span>
         </button>
+        <div class="flex items-center bg-slate-100 border border-slate-200 rounded-lg overflow-hidden" title="글자 크기">
+          <button id="fontDownBtn" type="button" aria-label="글자 작게" class="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-30">가-</button>
+          <span id="fontLabel" class="px-1 text-[0.6875rem] text-slate-500 font-mono min-w-[2.5rem] text-center">100%</span>
+          <button id="fontUpBtn" type="button" aria-label="글자 크게" class="px-2.5 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-30">가+</button>
+        </div>
         <button id="resetAllBtn" type="button" title="초기 상태로 되돌리기" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -122,28 +136,28 @@
         <!-- Level -->
         <div class="flex items-center gap-3 lg:col-span-1">
           <div id="levelBadge" class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex flex-col items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
-            <span class="text-[10px] font-semibold leading-none">LV</span>
+            <span class="text-[0.625rem] font-semibold leading-none">LV</span>
             <span id="levelNum" class="text-xl font-extrabold leading-none">1</span>
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-baseline justify-between gap-2">
               <span id="levelTitle" class="text-sm font-bold text-slate-900 truncate">실습 약대생</span>
-              <span id="xpText" class="text-[11px] text-slate-500 font-mono shrink-0">0 / 30 XP</span>
+              <span id="xpText" class="text-[0.6875rem] text-slate-500 font-mono shrink-0">0 / 30 XP</span>
             </div>
             <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden mt-1.5">
               <div id="xpBar" class="bg-gradient-to-r from-amber-400 to-orange-500 h-2.5 rounded-full transition-all duration-700" style="width: 0%"></div>
             </div>
-            <p id="nextLevelText" class="text-[11px] text-slate-400 mt-1">다음 레벨까지 3편</p>
+            <p id="nextLevelText" class="text-[0.6875rem] text-slate-400 mt-1">다음 레벨까지 3편</p>
           </div>
         </div>
         <!-- Streak & today -->
         <div class="grid grid-cols-2 gap-3 lg:col-span-1">
           <div class="px-3 py-2.5 bg-orange-50 rounded-xl border border-orange-100">
-            <div class="text-[11px] text-orange-700 font-semibold">연속 학습</div>
+            <div class="text-[0.6875rem] text-orange-700 font-semibold">연속 학습</div>
             <div class="text-lg font-extrabold text-orange-600"><span id="streakIcon">🔥</span> <span id="streakDays">0</span>일</div>
           </div>
           <div class="px-3 py-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
-            <div class="text-[11px] text-emerald-700 font-semibold">오늘의 목표</div>
+            <div class="text-[0.6875rem] text-emerald-700 font-semibold">오늘의 목표</div>
             <div class="text-lg font-extrabold text-emerald-700"><span id="todayCount">0</span> / <span id="todayGoal">3</span>편 <span id="todayDone" class="hidden">✅</span></div>
           </div>
         </div>
@@ -160,7 +174,7 @@
       </div>
       <!-- Badges -->
       <div>
-        <div class="text-[11px] font-bold text-slate-500 mb-1.5">획득 배지 <span id="badgeCount" class="text-slate-400 font-normal"></span></div>
+        <div class="text-[0.6875rem] font-bold text-slate-500 mb-1.5">획득 배지 <span id="badgeCount" class="text-slate-400 font-normal"></span></div>
         <div id="badgeList" class="flex flex-wrap gap-1.5"></div>
       </div>
     </div>
@@ -172,7 +186,7 @@
         <button type="button" data-cat="all" class="cat-pill shrink-0 whitespace-nowrap px-3 py-1.5 text-xs font-semibold rounded-full transition-all bg-emerald-600 text-white shadow-sm shadow-emerald-600/20">전체</button>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
       <!-- View Mode -->
       <div class="flex items-center bg-white border border-slate-200 rounded-xl p-0.5 text-xs font-semibold shrink-0" id="viewModeContainer">
         <button type="button" data-view="list" class="view-btn px-3 py-1.5 rounded-lg bg-emerald-600 text-white">목록</button>
@@ -180,7 +194,7 @@
         <button type="button" data-view="week" class="view-btn px-3 py-1.5 rounded-lg text-slate-600">주별</button>
       </div>
       <!-- Search Input -->
-      <div class="relative min-w-[200px] flex-1">
+      <div class="relative min-w-[12rem] flex-1">
         <input id="searchInput" type="text" placeholder="약물명, 질환, 저자 검색..." class="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all placeholder-slate-400">
         <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -535,14 +549,14 @@
           </button>`;
 
       const tagBadges = (a.tags || []).map(t =>
-        `<span class="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">#${esc(t)}</span>`
+        `<span class="text-[0.6875rem] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">#${esc(t)}</span>`
       ).join(' ');
 
       const points = a.summaryPoints || [];
       const pointsHtml = points.length
         ? `<ul class="flex flex-col gap-2">${points.map((pt, idx) => `
             <li class="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 leading-relaxed">
-              <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">${idx + 1}</span>
+              <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[0.6875rem] flex items-center justify-center shrink-0 mt-0.5">${idx + 1}</span>
               <span>${esc(pt)}</span>
             </li>`).join('')}</ul>`
         : `<p class="text-xs text-slate-400">요약 준비 중입니다. 자동 요약이 끝나면 여기에 표시됩니다.</p>`;
@@ -569,7 +583,7 @@
           </div>
 
           <div class="bg-slate-50/80 rounded-xl p-3.5 border border-slate-100">
-            <div class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <div class="text-[0.6875rem] font-bold text-emerald-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
                 <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
@@ -733,7 +747,7 @@
       const got = badges.filter(b => b.got).length;
       document.getElementById('badgeCount').textContent = `${got} / ${badges.length}`;
       document.getElementById('badgeList').innerHTML = badges.map(b => `
-        <span title="${esc(b.desc)}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border ${b.got ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-400'}">
+        <span title="${esc(b.desc)}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.6875rem] font-semibold border ${b.got ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-400'}">
           <span style="${b.got ? '' : 'filter:grayscale(1);opacity:.5'}">${b.icon}</span>${esc(b.name)}
         </span>`).join('');
     }
@@ -819,7 +833,7 @@
           // 이 묶음에 들어 있는 호와 표지 주제
           const issues = [...new Map(g.all.filter(a => a.issueNo).map(a => [a.issueNo, a.issueTheme])).entries()].sort((x, y) => y[0] - x[0]);
           const themesHtml = issues.length ? `<div class="flex flex-wrap gap-1.5 mt-1.5">${issues.map(([no, theme]) =>
-            `<span class="text-[11px] px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">${viewMode === 'month' ? `제${no}호 · ` : '📚 '}${esc(theme || '주제 없음')}</span>`).join('')}</div>` : '';
+            `<span class="text-[0.6875rem] px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">${viewMode === 'month' ? `제${no}호 · ` : '📚 '}${esc(theme || '주제 없음')}</span>`).join('')}</div>` : '';
           return `
           <details class="group" ${open ? 'open' : ''}>
             <summary class="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3 border rounded-xl shadow-sm ${cleared ? 'bg-amber-50/60 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}">
@@ -917,6 +931,20 @@
       updateStats();
 
       document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => setViewMode(b.dataset.view)));
+
+      let fontIdx = 0;
+      try { fontIdx = Math.min(FONT_SCALES.length - 1, Math.max(0, Number(localStorage.getItem(FONT_KEY)) || 0)); } catch (e) {}
+      const setFont = i => {
+        fontIdx = Math.min(FONT_SCALES.length - 1, Math.max(0, i));
+        applyFontScale(fontIdx);
+        try { localStorage.setItem(FONT_KEY, fontIdx); } catch (e) {}
+        document.getElementById('fontLabel').textContent = Math.round(FONT_SCALES[fontIdx]) + '%';
+        document.getElementById('fontDownBtn').disabled = fontIdx === 0;
+        document.getElementById('fontUpBtn').disabled = fontIdx === FONT_SCALES.length - 1;
+      };
+      setFont(fontIdx);
+      document.getElementById('fontDownBtn').addEventListener('click', () => setFont(fontIdx - 1));
+      document.getElementById('fontUpBtn').addEventListener('click', () => setFont(fontIdx + 1));
 
       document.getElementById('searchInput').addEventListener('input', (e) => {
         searchQuery = e.target.value;
