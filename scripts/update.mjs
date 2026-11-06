@@ -67,10 +67,14 @@ function parseArticle(idxno, html) {
     .filter(id => id !== idxno);
 
   let body = '';
+  let images = [];
   const start = html.indexOf('itemprop="articleBody"');
   if (start >= 0) {
     const end = html.indexOf('</article>', start);
-    body = decode(html.slice(start, end > 0 ? end : start + 60000)
+    const seg = html.slice(start, end > 0 ? end : start + 60000);
+    // 본문 사진(기사 내용이 이미지로만 된 연재가 있음)
+    images = [...new Set([...seg.matchAll(/<img[^>]+src="(https:\/\/cdn\.kpanews\.co\.kr\/news\/photo\/[^"]+)"/g)].map(m => m[1]))];
+    body = decode(seg
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
@@ -85,6 +89,7 @@ function parseArticle(idxno, html) {
     published,
     links,
     body,
+    images,
     article: {
       id: `kpj-${idxno}`,
       idxno,
@@ -257,7 +262,7 @@ async function researchPastMonths(state) {
 }
 
 // 요약 지시를 바꾸면 버전을 올린다 → 기존 요약도 차례로 다시 만든다
-const PROMPT_VERSION = 3;
+const PROMPT_VERSION = 4;
 const SUMMARY_PROMPT = `너는 바쁜 약국 약사가 핵심을 빠르게 파악할 수 있게 학술 기사를 정리하는 편집자다.
 아래 약사공론 '대한약사저널' 기사 본문만 근거로 요약하라.
 
@@ -270,11 +275,47 @@ summaryPoints 작성 규칙:
 - 용량·수치·약물명은 본문에 있는 그대로 쓰고, 본문에 없는 내용은 추가하지 않는다.
 - 문체는 "~한다/~이다" 평서형으로 통일한다.
 
+본문이 이미지로 함께 주어지면 이미지 속 글·표를 읽어 그 내용으로 요약한다. 이미지가 잘려 있으면 위에서 아래 순서로 이어진 한 장이다.
+
 tags: 약물(성분)명·질환명 위주 3~4개, 공백 없이, # 없이.`;
 
-async function summarize(article, body) {
+// 본문 글이 이만큼보다 짧으면 기사 이미지를 읽어서 요약한다
+const IMAGE_FALLBACK_CHARS = 1500;
+const MAX_IMAGE_PARTS = 10;
+
+// 세로로 긴 이미지는 잘라서 보낸다 (ImageMagick 있으면). 반환: [{mime, data(base64)}]
+async function loadImageParts(urls) {
+  const { execFileSync } = await import('node:child_process');
+  const os = await import('node:os');
+  const parts = [];
+  for (const url of urls.slice(0, 6)) {
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    if (!res.ok) continue;
+    const buf = Buffer.from(await res.arrayBuffer());
+    let pieces = [buf];
+    try {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'kpj-img-'));
+      const src = path.join(dir, 'src.jpg');
+      await fs.writeFile(src, buf);
+      execFileSync('convert', [src, '-crop', '100%x1600', '+repage', '-quality', '85', path.join(dir, 'part_%02d.jpg')]);
+      const files = (await fs.readdir(dir)).filter(f => f.startsWith('part_')).sort();
+      if (files.length) pieces = await Promise.all(files.map(f => fs.readFile(path.join(dir, f))));
+      await fs.rm(dir, { recursive: true, force: true });
+    } catch {
+      // ImageMagick 없으면 원본 그대로
+    }
+    for (const p of pieces) parts.push({ mime: 'image/jpeg', data: p.toString('base64') });
+    if (parts.length >= MAX_IMAGE_PARTS) break;
+  }
+  return parts.slice(0, MAX_IMAGE_PARTS);
+}
+
+async function summarize(article, body, imageParts = []) {
   const data = await geminiRequest({
-    contents: [{ parts: [{ text: `${SUMMARY_PROMPT}\n\n제목: ${article.title}\n\n본문:\n${body.slice(0, 15000)}` }] }],
+    contents: [{ parts: [
+      { text: `${SUMMARY_PROMPT}\n\n제목: ${article.title}\n\n본문:\n${body.slice(0, 15000)}` },
+      ...imageParts.map(p => ({ inline_data: { mime_type: p.mime, data: p.data } }))
+    ] }],
     generationConfig: {
       temperature: 0.2,
       responseMimeType: 'application/json',
@@ -310,9 +351,15 @@ async function summarizePending(articles) {
   for (const a of pending.slice(0, MAX_SUMMARIES)) {
     try {
       const html = await get(a.url);
-      const { body } = parseArticle(a.idxno, html);
-      if (body.length < 200) { console.warn(`본문 짧음, 건너뜀: ${a.title}`); continue; }
-      const out = await summarize(a, body);
+      const { body, images } = parseArticle(a.idxno, html);
+      let imageParts = [];
+      if (body.length < IMAGE_FALLBACK_CHARS && images.length) {
+        imageParts = await loadImageParts(images);
+        console.log(`  본문 글이 짧아 이미지 ${imageParts.length}조각으로 요약: ${a.title}`);
+      }
+      if (body.length < 200 && !imageParts.length) { console.warn(`본문 짧음, 건너뜀: ${a.title}`); continue; }
+      const out = await summarize(a, body, imageParts);
+      a.fromImages = imageParts.length > 0;
       a.summaryPoints = out.summaryPoints.map(s => s.trim()).filter(Boolean).slice(0, 7);
       a.tags = out.tags.map(t => t.replace(/^#/, '').trim()).filter(Boolean).slice(0, 5);
       a.summarizedBy = out.model;
