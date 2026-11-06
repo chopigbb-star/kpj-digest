@@ -32,7 +32,7 @@ const ONLY = argVal('--only', '');
 const BACKEND = process.env.GEMINI_BACKEND || 'api';
 const SUMMARY_MODEL = process.env.SUMMARY_MODEL || (BACKEND === 'cli' ? 'gemini-3.8-flash-medium' : 'gemini-flash-latest');
 // 지시문을 바꾸면 올린다 → 이미 처리한 호도 다시 요약
-const PROMPT_VERSION = 2; // 2: 이번 호 주제(issueTheme) 추가
+const PROMPT_VERSION = 3; // 2: 이번 호 주제(issueTheme) 3: 핵심 3줄(keyPoints)·형광펜(==구절==)
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -94,6 +94,10 @@ const PROMPT = `너는 바쁜 약국 약사가 핵심을 빠르게 파악할 수
 - title은 큰 제목만, subtitle은 작은 부제. author는 "이름 + 약사/교수 등", affiliation은 괄호 속 소속.
 - firstPage: 기사가 시작하는 면 번호(숫자).
 
+keyPoints (핵심 3줄):
+- 이 기사에서 가장 중요한 내용 정확히 3줄. 각 줄은 한 문장, 70자 안팎. 약사가 이 3줄만 읽어도 기사의 결론을 알 수 있게 쓴다.
+- 구체적으로 쓴다(약물명·수치·권고 포함). "~를 다룬다", "~를 알아본다" 같은 소개 문장은 쓰지 않는다.
+
 summaryPoints 작성 규칙:
 - 4~6개 항목. 각 항목은 한 가지 주제만 다루고 1~3문장으로 쓴다. 기전·근거(임상연구 결과 등)·용법·주의사항처럼 약국에서 쓸모 있는 구체적 내용은 충분히 담는다. 기사가 짧으면 항목 수를 줄인다.
 - 항목 맨 앞에 핵심어를 두고 콜론으로 시작한다. 예: "오라페인큐겔(리도카인+CPC): 국소마취로 통증을 빠르게 줄이고 항균 작용을 더한다."
@@ -101,10 +105,11 @@ summaryPoints 작성 규칙:
 - 마지막 1~2개 항목은 약국에서 바로 쓸 상담·복약지도 포인트나 주의사항(금기, 상호작용, 특정 환자군)으로 한다.
 - 표·그림 속 내용도 읽어서 반영한다. 용량·수치·약물명은 PDF에 있는 그대로 쓰고, PDF에 없는 내용은 추가하지 않는다.
 - 문체는 "~한다/~이다" 평서형으로 통일한다.
+- 형광펜: 약국에서 꼭 기억해야 할 결정적인 구절(약물+용량·용법, 금기·주의 대상, 핵심 수치, 1차 선택약 같은 결론)을 ==이렇게== 감싼다. 항목마다 0~2곳, 한 곳은 25자 이내의 짧은 구절로, 문장 전체를 감싸지 않는다.
 
 tags: 약물(성분)명·질환명 위주 3~4개, 공백 없이, # 없이.`;
 
-const ARTICLE_FIELDS = ['pages', 'firstPage', 'category', 'title', 'subtitle', 'author', 'affiliation', 'summaryPoints', 'tags'];
+const ARTICLE_FIELDS = ['pages', 'firstPage', 'category', 'title', 'subtitle', 'author', 'affiliation', 'keyPoints', 'summaryPoints', 'tags'];
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -121,6 +126,7 @@ const SCHEMA = {
           subtitle: { type: 'string' },
           author: { type: 'string' },
           affiliation: { type: 'string' },
+          keyPoints: { type: 'array', items: { type: 'string' } },
           summaryPoints: { type: 'array', items: { type: 'string' } },
           tags: { type: 'array', items: { type: 'string' } }
         },
@@ -212,6 +218,7 @@ function toArticles(issue, issueNo, out) {
         author: clean(a.author),
         affiliation: clean(a.affiliation).replace(/^\(|\)$/g, ''),
         url: pdfUrl(issue, first),
+        keyPoints: (a.keyPoints || []).map(s => clean(s).replace(/==/g, '')).filter(Boolean).slice(0, 3),
         summaryPoints: a.summaryPoints.map(clean).filter(Boolean).slice(0, 7),
         tags: (a.tags || []).map(t => clean(t).replace(/^#/, '')).filter(Boolean).slice(0, 5),
         summarizedBy: SUMMARY_MODEL
@@ -245,7 +252,7 @@ async function main() {
   const todo = Object.entries(state.issues)
     .map(([hosu, v]) => ({ hosu: Number(hosu), ...v }))
     .filter(i => (ONLY ? i.hosu === Number(ONLY) : (i.promptVersion || 0) < PROMPT_VERSION))
-    .sort((a, b) => b.hosu - a.hosu);
+    .sort((a, b) => (a.promptVersion ? 1 : 0) - (b.promptVersion ? 1 : 0) || b.hosu - a.hosu);
   console.log(`호수 ${Object.keys(state.issues).length}개 중 처리할 호 ${todo.length}개 (이번 실행 최대 ${MAX_ISSUES})`);
 
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'kpj-pdf-'));

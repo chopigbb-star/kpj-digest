@@ -6,8 +6,8 @@ export PATH="$HOME/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/us
 cd "$(dirname "$0")/.."
 
 LOCK=/tmp/kpj-digest.lock
-# 강제 종료로 남은 잠금(3시간 넘음)은 지운다
-if [ -d "$LOCK" ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +180)" ]; then
+# 강제 종료로 남은 잠금(5시간 넘음)은 지운다
+if [ -d "$LOCK" ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +300)" ]; then
   rmdir "$LOCK"
 fi
 if ! mkdir "$LOCK" 2>/dev/null; then
