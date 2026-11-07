@@ -43,6 +43,22 @@ const LETTERS = {
 };
 const DIGITS = ['제로', '원', '투', '쓰리', '포', '파이브', '식스', '세븐', '에잇', '나인'];
 
+// 시간은 고유어로: 14시간 → 열네 시간, 24시간 → 스물네 시간 (1~99)
+const NATIVE_ONES = ['', '한', '두', '세', '네', '다섯', '여섯', '일곱', '여덟', '아홉'];
+const NATIVE_TENS = ['', '열', '스물', '서른', '마흔', '쉰', '예순', '일흔', '여든', '아흔'];
+function nativeNumber(n) {
+  if (n === 20) return '스무';
+  return NATIVE_TENS[Math.floor(n / 10)] + NATIVE_ONES[n % 10];
+}
+function readHours(text) {
+  const nat = d => (Number(d) >= 1 && Number(d) <= 99 ? nativeNumber(Number(d)) : d);
+  return text
+    // 4~6시간 → 네 시간에서 여섯 시간
+    .replace(/(?<![\d.])(\d{1,2})\s*(?:시간|h|hr|hrs)?\s*[~∼–-]\s*(\d{1,2})\s*(?:시간|hrs?|h)(?![A-Za-z])/g, (m, a, b) => `${nat(a)} 시간에서 ${nat(b)} 시간`)
+    // 14h, 14시간 → 열네 시간 (소수점 시간은 그대로)
+    .replace(/(?<![\d.])(\d{1,2})\s*(?:시간|hrs?|h)(?![A-Za-z])/g, (m, a) => `${nat(a)} 시간`);
+}
+
 // 대문자가 2개 이상인 약어(LDL, COPD, CYP3A4, LDL-C, IgE…)를 알파벳 소리로
 function spellAcronyms(text) {
   const words = Object.keys(ACRONYM_WORDS).sort((a, b) => b.length - a.length)
@@ -64,7 +80,7 @@ function spellAcronyms(text) {
 
 // 읽기 좋게 약어·단위·기호를 한글로
 function speakable(s) {
-  return spellAcronyms(String(s).replace(/==/g, ''))
+  return readHours(spellAcronyms(String(s).replace(/==/g, '')))
     .replace(/\bvs\.?(?=\s|$)/gi, '대')
     .replace(/(\d)\s*mg\/dL\b/gi, '$1 밀리그램 퍼 데시리터') // mg보다 먼저
     .replace(/(\d)\s*㎎|(\d)\s*mg\b/gi, (m, a, b) => `${a || b} 밀리그램`)
@@ -73,6 +89,8 @@ function speakable(s) {
     .replace(/(\d)\s*kg\b/gi, '$1 킬로그램')
     .replace(/(\d)\s*g\b/g, '$1 그램')
     .replace(/(\d)\s*mmHg\b/gi, '$1 밀리미터수은')
+    .replace(/(\d)\s*min(?![A-Za-z])/g, '$1분')
+    .replace(/(\d)\s*wk(?![A-Za-z])/g, '$1주')
     .replace(/(\d)\s*%p(?![A-Za-z])/g, '$1퍼센트포인트')
     .replace(/(\d)\s*%/g, '$1퍼센트')
     .replace(/(\d)\s*[~∼]\s*(\d)/g, '$1에서 $2')
