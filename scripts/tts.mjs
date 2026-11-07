@@ -29,10 +29,38 @@ async function readJson(file, fallback) {
   try { return JSON.parse(await fs.readFile(file, 'utf8')); } catch { return fallback; }
 }
 
-// 읽기 좋게 단위·기호를 한글로
+// 약사들이 단어처럼 읽는 약어 (나머지 약어는 알파벳을 하나씩 읽는다)
+const ACRONYM_WORDS = {
+  'HMG-CoA': '에이치엠지 코에이', CoQ10: '코큐텐', NSAIDs: '엔세이드', NSAID: '엔세이드',
+  ACE: '에이스', ARNI: '아르니', LAMA: '라마', LABA: '라바', SABA: '사바', SAMA: '사마',
+  GINA: '지나', GOLD: '골드', MART: '마트', ARIA: '아리아', PubMed: '펍메드', COVID: '코비드',
+  HFrEF: '헤프렙', HFpEF: '헤프펩', HbA1c: '에이치비에이원씨', CrCl: '크레아티닌 청소율'
+};
+const LETTERS = {
+  A: '에이', B: '비', C: '씨', D: '디', E: '이', F: '에프', G: '지', H: '에이치', I: '아이', J: '제이', K: '케이',
+  L: '엘', M: '엠', N: '엔', O: '오', P: '피', Q: '큐', R: '알', S: '에스', T: '티', U: '유', V: '브이',
+  W: '더블유', X: '엑스', Y: '와이', Z: '지'
+};
+const DIGITS = ['제로', '원', '투', '쓰리', '포', '파이브', '식스', '세븐', '에잇', '나인'];
+
+// 대문자가 2개 이상인 약어(LDL, COPD, CYP3A4, LDL-C, IgE…)를 알파벳 소리로
+function spellAcronyms(text) {
+  const words = Object.keys(ACRONYM_WORDS).sort((a, b) => b.length - a.length)
+    .map(w => w.replace(/[-]/g, '\\-'));
+  text = text.replace(new RegExp(`(?<![A-Za-z])(${words.join('|')})(?![A-Za-z])`, 'g'), m => ACRONYM_WORDS[m]);
+  return text.replace(/(?<![A-Za-z0-9])(?=[A-Za-z0-9-]*[A-Z][A-Za-z0-9-]*[A-Z])[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*(?![A-Za-z0-9])/g, token =>
+    token.replace(/([A-Z0-9])s$/, '$1') // 복수형 s (SPMs, SCFAs)
+      .split('-')
+      .map(seg => seg.replace(/\d+|[A-Za-z]/g, ch => {
+        if (/\d/.test(ch)) return ch.length <= 2 ? [...ch].map(d => DIGITS[d]).join('') : ` ${ch} `;
+        return LETTERS[ch.toUpperCase()] || ch;
+      }).trim())
+      .join(' '));
+}
+
+// 읽기 좋게 약어·단위·기호를 한글로
 function speakable(s) {
-  return String(s)
-    .replace(/==/g, '')
+  return spellAcronyms(String(s).replace(/==/g, ''))
     .replace(/\bvs\.?(?=\s|$)/gi, '대')
     .replace(/(\d)\s*mg\/dL\b/gi, '$1 밀리그램 퍼 데시리터') // mg보다 먼저
     .replace(/(\d)\s*㎎|(\d)\s*mg\b/gi, (m, a, b) => `${a || b} 밀리그램`)
@@ -44,6 +72,8 @@ function speakable(s) {
     .replace(/(\d)\s*%p\b/g, '$1 퍼센트포인트')
     .replace(/(\d)\s*%/g, '$1 퍼센트')
     .replace(/(\d)\s*[~∼]\s*(\d)/g, '$1에서 $2')
+    .replace(/(\d)\s*\/\s*(\d)/g, '$1에 $2') // 130/80 → 130에 80
+    .replace(/\s*\/\s*/g, ', ') // 남은 / 는 쉼표로 (슬래시라고 읽지 않게)
     .replace(/\bqd\b/gi, '하루 한 번')
     .replace(/\bbid\b/gi, '하루 두 번')
     .replace(/\s+/g, ' ')
