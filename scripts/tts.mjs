@@ -32,9 +32,9 @@ async function readJson(file, fallback) {
 // 약사들이 단어처럼 읽는 약어 (나머지 약어는 알파벳을 하나씩 읽는다)
 const ACRONYM_WORDS = {
   'HMG-CoA': '에이치엠지 코에이', CoQ10: '코큐텐', NSAIDs: '엔세이드', NSAID: '엔세이드',
-  ACE: '에이스', ARNI: '아르니', LAMA: '라마', LABA: '라바', SABA: '사바', SAMA: '사마',
+  LAMA: '라마', LABA: '라바', SABA: '사바', SAMA: '사마',
   GINA: '지나', GOLD: '골드', MART: '마트', ARIA: '아리아', PubMed: '펍메드', COVID: '코비드',
-  HFrEF: '헤프렙', HFpEF: '헤프펩', HbA1c: '에이치비에이원씨', CrCl: '크레아티닌 청소율'
+  HbA1c: '에이치비에이원씨', CrCl: '크레아티닌 청소율'
 };
 const LETTERS = {
   A: '에이', B: '비', C: '씨', D: '디', E: '이', F: '에프', G: '지', H: '에이치', I: '아이', J: '제이', K: '케이',
