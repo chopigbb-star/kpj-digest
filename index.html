@@ -127,6 +127,7 @@
           <span id="fontLabel" class="px-1 text-[0.6875rem] text-slate-500 font-mono min-w-[2.5rem] text-center">100%</span>
           <button id="fontUpBtn" type="button" aria-label="글자 크게" class="px-2.5 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-30">가+</button>
         </div>
+        <button id="podcastBtn" type="button" title="팟캐스트 앱으로 구독" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors">🎙 팟캐스트</button>
         <button id="backupBtn" type="button" title="즐겨찾기·메모 백업" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors">💾 백업</button>
         <button id="resetAllBtn" type="button" title="초기 상태로 되돌리기" class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -326,6 +327,41 @@
           </div>
           <p class="text-[0.6875rem] text-slate-400">여러 사람이 쓰는 컴퓨터라면 다 쓴 뒤 '연결 해제'를 눌러 주세요. 기록은 지워지지 않고 이 기기에서 토큰만 지워집니다.</p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Podcast Modal -->
+  <div id="podcastModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full max-h-[90vh] overflow-y-auto p-5 flex flex-col gap-3 text-xs sm:text-sm">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">🎙 팟캐스트로 구독하기</h3>
+        <button id="closePodcastBtn" type="button" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100" aria-label="닫기">✕</button>
+      </div>
+      <p class="text-slate-500 leading-relaxed">팟캐스트 앱에 아래 주소를 등록하면 새 호가 나올 때마다 자동으로 받아집니다. 화면을 꺼도 이어서 듣고, 미리 받아 두면 데이터 없이도 들을 수 있어요. (최근 30일 치)</p>
+      <div class="flex gap-2">
+        <input id="feedUrl" readonly value="https://chopigbb-star.github.io/kpj-digest-audio/feed.xml" class="flex-1 min-w-0 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-mono">
+        <button id="copyFeedBtn" type="button" class="shrink-0 px-3 py-2 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">주소 복사</button>
+      </div>
+      <div class="flex flex-col gap-2 text-slate-700 leading-relaxed">
+        <div class="rounded-xl bg-slate-50 border border-slate-100 p-3">
+          <div class="font-bold mb-1">📱 아이폰 — Apple 팟캐스트</div>
+          <ol class="list-decimal pl-5 flex flex-col gap-0.5">
+            <li>위 [주소 복사]를 누릅니다.</li>
+            <li>팟캐스트 앱 → 아래 <b>보관함</b> 탭</li>
+            <li>오른쪽 위 <b>⋯</b> → <b>URL로 프로그램 팔로우</b></li>
+            <li>주소를 붙여넣고 <b>팔로우</b></li>
+          </ol>
+        </div>
+        <div class="rounded-xl bg-slate-50 border border-slate-100 p-3">
+          <div class="font-bold mb-1">🤖 안드로이드 — Podcast Addict 또는 AntennaPod (무료, Play 스토어)</div>
+          <ol class="list-decimal pl-5 flex flex-col gap-0.5">
+            <li>위 [주소 복사]를 누릅니다.</li>
+            <li>앱의 <b>＋(추가)</b> → <b>RSS 피드 / 주소로 추가</b></li>
+            <li>주소를 붙여넣고 구독</li>
+          </ol>
+        </div>
+        <p class="text-[0.6875rem] text-slate-400">한 호의 기사를 면 순서대로 듣고 싶으면 앱의 정렬을 '오래된 순'으로 바꿔 주세요.</p>
       </div>
     </div>
   </div>
@@ -1339,6 +1375,22 @@
       setFont(fontIdx);
       document.getElementById('fontDownBtn').addEventListener('click', () => setFont(fontIdx - 1));
       document.getElementById('fontUpBtn').addEventListener('click', () => setFont(fontIdx + 1));
+
+      // ===== 팟캐스트 구독 안내 =====
+      const podcastModal = document.getElementById('podcastModal');
+      document.getElementById('podcastBtn').addEventListener('click', () => podcastModal.classList.remove('hidden'));
+      document.getElementById('closePodcastBtn').addEventListener('click', () => podcastModal.classList.add('hidden'));
+      podcastModal.addEventListener('click', (e) => { if (e.target === podcastModal) podcastModal.classList.add('hidden'); });
+      document.getElementById('copyFeedBtn').addEventListener('click', async () => {
+        const input = document.getElementById('feedUrl');
+        try {
+          await navigator.clipboard.writeText(input.value);
+        } catch (e) {
+          input.select();
+          document.execCommand('copy');
+        }
+        showToast('구독 주소를 복사했습니다. 팟캐스트 앱에 붙여넣으세요.');
+      });
 
       // ===== 백업: 즐겨찾기·메모·읽음 기록 내보내기 / 불러오기(합치기) =====
       const backupModal = document.getElementById('backupModal');

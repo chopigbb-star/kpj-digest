@@ -72,6 +72,72 @@ async function durationSeconds(file) {
   } catch { return null; }
 }
 
+// ===== 팟캐스트 구독 주소 (feed.xml) =====
+const SITE_URL = 'https://chopigbb-star.github.io/kpj-digest/';
+const xml = s => String(s ?? '').replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+
+async function writeFeed(articles, state, baseUrl) {
+  const byId = new Map(articles.map(a => [a.id, a]));
+  const items = [];
+  for (const [id, it] of Object.entries(state.items)) {
+    const a = byId.get(id);
+    if (!a) continue;
+    let bytes = 0;
+    try { bytes = (await fs.stat(path.join(AUDIO_DIR, it.file))).size; } catch { continue; }
+    // 발행 시각: 호 날짜 06:00(KST) + 시작 면(분) → 같은 호 안에서는 면 순서대로
+    const [y, m, d] = a.date.split('.').map(Number);
+    const pub = new Date(Date.UTC(y, m - 1, d, 6 - 9, a.firstPage || 0));
+    const desc = [
+      `대한약사저널 제${a.issueNo}호 (${a.date}) · ${a.category} · ${a.pages}면`,
+      a.issueTheme ? `이번 호 주제: ${a.issueTheme}` : '',
+      a.author ? `글: ${a.author}${a.affiliation ? ` (${a.affiliation})` : ''}` : '',
+      '',
+      ...(a.keyPoints || []).map((k, i) => `${i + 1}. ${k}`),
+      '',
+      `원문(PDF): ${a.url}`,
+      `요약은 AI가 만든 것으로 오류가 있을 수 있습니다. 복약지도 전 원문을 확인하세요.`
+    ].filter(x => x !== undefined).join('\n');
+    items.push({ pub, xml: `
+    <item>
+      <title>${xml(`[제${a.issueNo}호] ${a.title}`)}</title>
+      <description>${xml(desc)}</description>
+      <itunes:summary>${xml(desc)}</itunes:summary>
+      <enclosure url="${xml(baseUrl + it.file)}" length="${bytes}" type="audio/mpeg"/>
+      <guid isPermaLink="false">${xml(id)}</guid>
+      <pubDate>${pub.toUTCString()}</pubDate>
+      <itunes:duration>${it.seconds || 0}</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+      <itunes:explicit>false</itunes:explicit>
+      <link>${xml(a.url)}</link>
+    </item>` });
+  }
+  items.sort((x, y) => y.pub - x.pub);
+  const feed = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>대한약사저널 핵심 요약 듣기 (KPJ Digest)</title>
+    <link>${SITE_URL}</link>
+    <atom:link href="${xml(baseUrl)}feed.xml" rel="self" type="application/rss+xml"/>
+    <language>ko-kr</language>
+    <description>약사공론 '대한약사저널' 학술지 기사의 핵심 3줄과 임상·복약 요약을 읽어 드립니다. 최근 ${RETAIN_DAYS}일 치만 제공됩니다. 요약은 AI가 만든 것으로 오류가 있을 수 있으니 원문을 확인하세요. 원문 저작권은 약사공론(대한약사회)에 있습니다.</description>
+    <itunes:author>KPJ Digest</itunes:author>
+    <itunes:image href="${xml(baseUrl)}cover.jpg"/>
+    <image><url>${xml(baseUrl)}cover.jpg</url><title>대한약사저널 핵심 요약 듣기</title><link>${SITE_URL}</link></image>
+    <itunes:category text="Health &amp; Fitness"><itunes:category text="Medicine"/></itunes:category>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:type>episodic</itunes:type>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>${items.map(i => i.xml).join('')}
+  </channel>
+</rss>
+`;
+  const file = path.join(AUDIO_DIR, 'feed.xml');
+  const old = await fs.readFile(file, 'utf8').catch(() => '');
+  const strip = t => t.replace(/<lastBuildDate>.*?<\/lastBuildDate>/, '');
+  if (strip(old) === strip(feed)) return false;
+  await fs.writeFile(file, feed);
+  return true;
+}
+
 async function git(...args) {
   const { stdout } = await run('git', args, { cwd: AUDIO_DIR });
   return stdout.trim();
@@ -135,8 +201,11 @@ async function main() {
   await fs.writeFile(AUDIO_JSON, JSON.stringify(state, null, 1) + '\n');
   console.log(`음성: 새로/갱신 ${made}개, 삭제 ${removed}개, 보관 중 ${Object.keys(state.items).length}개`);
 
-  // 4) 음성 저장소에 올리기: 기록 없이 한 커밋으로 덮어써서 용량이 쌓이지 않게 한다
-  if (!(made || removed) || process.env.TTS_NO_PUBLISH) return;
+  // 4) 팟캐스트 구독 주소 갱신
+  const feedChanged = state.baseUrl ? await writeFeed(articles, state, state.baseUrl) : false;
+
+  // 5) 음성 저장소에 올리기: 기록 없이 한 커밋으로 덮어써서 용량이 쌓이지 않게 한다
+  if (!(made || removed || feedChanged) || process.env.TTS_NO_PUBLISH) return;
   try {
     await fs.writeFile(path.join(AUDIO_DIR, '.nojekyll'), '');
     await git('branch', '-D', 'publish').catch(() => {});
