@@ -223,8 +223,8 @@ async function main() {
     const text = scriptOf(a);
     const hash = crypto.createHash('sha1').update(VOICE + RATE + text).digest('hex').slice(0, 12);
     const cur = state.items[a.id];
-    if (cur && cur.hash === hash) continue;
     const file = `${a.id}-${hash}.mp3`;
+    if (cur && cur.hash === hash && cur.file === file) continue;
     const out = path.join(AUDIO_DIR, file);
     const txt = path.join(AUDIO_DIR, `.${a.id}.txt`);
     try {
