@@ -31,10 +31,10 @@ async function readJson(file, fallback) {
 
 // 약사들이 단어처럼 읽는 약어 (나머지 약어는 알파벳을 하나씩 읽는다)
 const ACRONYM_WORDS = {
-  'HMG-CoA': '에이치엠지 코에이', CoQ10: '코큐텐', NSAIDs: '엔세이드', NSAID: '엔세이드',
+  'HMG-CoA': '에이치 엠 지 코 에이', CoQ10: '코큐텐', NSAIDs: '엔세이드', NSAID: '엔세이드',
   LAMA: '라마', LABA: '라바', SABA: '사바', SAMA: '사마',
   GINA: '지나', GOLD: '골드', MART: '마트', ARIA: '아리아', PubMed: '펍메드', COVID: '코비드',
-  HbA1c: '에이치비에이원씨', CrCl: '크레아티닌 청소율'
+  HbA1c: '에이치 비 에이 원 씨', CrCl: '크레아티닌 청소율'
 };
 const LETTERS = {
   A: '에이', B: '비', C: '씨', D: '디', E: '이', F: '에프', G: '지', H: '에이치', I: '아이', J: '제이', K: '케이',
@@ -48,14 +48,18 @@ function spellAcronyms(text) {
   const words = Object.keys(ACRONYM_WORDS).sort((a, b) => b.length - a.length)
     .map(w => w.replace(/[-]/g, '\\-'));
   text = text.replace(new RegExp(`(?<![A-Za-z])(${words.join('|')})(?![A-Za-z])`, 'g'), m => ACRONYM_WORDS[m]);
-  return text.replace(/(?<![A-Za-z0-9])(?=[A-Za-z0-9-]*[A-Z][A-Za-z0-9-]*[A-Z])[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*(?![A-Za-z0-9])/g, token =>
-    token.replace(/([A-Z0-9])s$/, '$1') // 복수형 s (SPMs, SCFAs)
+  return text.replace(/(?<![A-Za-z0-9])(?=[A-Za-z0-9-]*[A-Z][A-Za-z0-9-]*[A-Z])[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*(?![A-Za-z0-9])/g, (token, offset, whole) => {
+    // 뒤에 붙은 말이 조사(은·는·의…)가 아니면 띄운다: ACE억제제 → 에이 씨 이 억제제
+    const after = whole.slice(offset + token.length);
+    const gap = /^[가-힣]/.test(after) && !/^(은|는|이|가|을|를|의|와|과|에|에서|로|으로|도|만|및|등)(?![가-힣])/.test(after) ? ' ' : '';
+    return token.replace(/([A-Z0-9])s$/, '$1') // 복수형 s (SPMs, SCFAs)
       .split('-')
-      .map(seg => seg.replace(/\d+|[A-Za-z]/g, ch => {
-        if (/\d/.test(ch)) return ch.length <= 2 ? [...ch].map(d => DIGITS[d]).join('') : ` ${ch} `;
+      .map(seg => (seg.match(/\d+|[A-Za-z]/g) || []).map(ch => {
+        if (/\d/.test(ch)) return ch.length <= 2 ? [...ch].map(d => DIGITS[d]).join(' ') : ch;
         return LETTERS[ch.toUpperCase()] || ch;
-      }).trim())
-      .join(' '));
+      }).join(' '))
+      .join(' ') + gap;
+  });
 }
 
 // 읽기 좋게 약어·단위·기호를 한글로
@@ -69,8 +73,8 @@ function speakable(s) {
     .replace(/(\d)\s*kg\b/gi, '$1 킬로그램')
     .replace(/(\d)\s*g\b/g, '$1 그램')
     .replace(/(\d)\s*mmHg\b/gi, '$1 밀리미터수은')
-    .replace(/(\d)\s*%p\b/g, '$1 퍼센트포인트')
-    .replace(/(\d)\s*%/g, '$1 퍼센트')
+    .replace(/(\d)\s*%p(?![A-Za-z])/g, '$1퍼센트포인트')
+    .replace(/(\d)\s*%/g, '$1퍼센트')
     .replace(/(\d)\s*[~∼]\s*(\d)/g, '$1에서 $2')
     .replace(/(\d)\s*\/\s*(\d)/g, '$1에 $2') // 130/80 → 130에 80
     .replace(/\s*\/\s*/g, ', ') // 남은 / 는 쉼표로 (슬래시라고 읽지 않게)
@@ -133,7 +137,7 @@ async function writeFeed(articles, state, baseUrl) {
       <description>${xml(desc)}</description>
       <itunes:summary>${xml(desc)}</itunes:summary>
       <enclosure url="${xml(baseUrl + it.file)}" length="${bytes}" type="audio/mpeg"/>
-      <guid isPermaLink="false">${xml(id)}</guid>
+      <guid isPermaLink="false">${xml(it.file.replace(/\.mp3$/, ''))}</guid>
       <pubDate>${pub.toUTCString()}</pubDate>
       <itunes:duration>${it.seconds || 0}</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -202,7 +206,7 @@ async function main() {
     const hash = crypto.createHash('sha1').update(VOICE + RATE + text).digest('hex').slice(0, 12);
     const cur = state.items[a.id];
     if (cur && cur.hash === hash) continue;
-    const file = `${a.id}.mp3`;
+    const file = `${a.id}-${hash}.mp3`;
     const out = path.join(AUDIO_DIR, file);
     const txt = path.join(AUDIO_DIR, `.${a.id}.txt`);
     try {
